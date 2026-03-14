@@ -93,6 +93,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\one_click_installer.ps1
 
 ตัวติดตั้งจะ:
 - คัดลอกไฟล์ระบบ
+- ติดตั้งลงโฟลเดอร์เริ่มต้น `C:\pytrade`
 - ถามค่า MT5 + preset + symbols + Telegram
 - มีหน้าปรับละเอียดเพิ่ม: Risk, Thresholds, Smart Exit
 - ตรวจสอบความถูกต้องของค่าก่อนกด Next (ช่วงตัวเลข, true/false, ลำดับ thresholds)
@@ -143,7 +144,36 @@ Preset:
 - Smart Exit (`BE`, `Trailing`, `Partial Close`)
 - Runtime (`SCAN_INTERVAL_SECONDS`, `SYNC_INTERVAL_SECONDS`, `DRY_RUN`)
 
+Lot sizing ตามเงินในบัญชีจริง:
+- `USE_MT5_BALANCE_FOR_SIZING=true` ให้ระบบใช้ยอดเงินจริงจาก MT5 ในการคำนวณความเสี่ยงต่อไม้
+- `RISK_BALANCE_SOURCE=equity` (แนะนำ) หรือ `balance`
+- `RISK_PER_TRADE_PCT` จะถูกคูณกับฐานที่เลือกเพื่อคำนวณ `risk_amount` และ lot อัตโนมัติ
+
 หลังบันทึกให้รีสตาร์ท daemon เพื่อโหลดค่าใหม่
+
+## เปลี่ยนโปรไฟล์ใน Dashboard (ทีละขั้น)
+1. เปิด Dashboard: `py -m streamlit run streamlit_app.py`
+2. ไปแท็บ `ตั้งค่า`
+3. หัวข้อ `ตัวช่วยปรับค่าระบบ` เลือก `โปรไฟล์สำเร็จรูป`
+4. กด `ใช้โปรไฟล์นี้`
+5. กด `บันทึกค่าจากฟอร์ม`
+6. ที่เมนูซ้าย กด `หยุดเดมอน` แล้ว `เริ่มเดมอน` เพื่อให้ค่าใหม่มีผล
+
+ตรวจสอบว่าเปลี่ยนสำเร็จ:
+- ดูที่เมนูซ้ายหัวข้อ `หมวดที่ใช้งานตอนนี้`
+- ค่า `โปรไฟล์ / โหมดคัดกรอง / แจ้งเตือนขั้นต่ำ / ส่งคำสั่งขั้นต่ำ` ต้องเปลี่ยนตามที่ตั้ง
+
+## Exness: รายการ Symbol แนะนำ (เริ่มใช้งานง่าย)
+สำหรับบัญชี Exness แนะนำเริ่มจากชุดนี้ก่อน:
+
+```env
+SYMBOLS=BTCUSD,ETHUSD,SOLUSD,BNBUSD,XRPUSD,ADAUSD,DOGEUSD,XAUUSD,XAGUSD,EURUSD,GBPUSD,USDJPY,USOIL,UKOIL
+```
+
+หมายเหตุ:
+- บางบัญชีอาจมี suffix เช่น `BTCUSDm`, `XAUUSDm` (ระบบมี normalize ให้)
+- ถ้า symbol ใดไม่มีในโบรกเกอร์ ระบบจะ log warning และข้าม
+- แนะนำเพิ่มทีละ 2-3 ตัว แล้วทดสอบ `scan --once` ก่อนรันเดมอน
 
 ## Premium Stack (เปิดไม้เพิ่มเมื่อสัญญาณแรง)
 สามารถให้ระบบเปิดไม้เพิ่มได้ แม้มีออเดอร์ค้างอยู่ เมื่อสัญญาณเป็น `premium/ultra`:

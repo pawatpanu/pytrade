@@ -101,3 +101,34 @@ def test_max_open_positions_for_premium_and_ultra(tmp_path) -> None:
 
     assert engine._max_open_positions_for_signal(premium_signal) == 2
     assert engine._max_open_positions_for_signal(ultra_signal) == 4
+
+
+def test_resolve_risk_amount_uses_mt5_equity(tmp_path, monkeypatch) -> None:
+    cfg = Config(
+        db_path=str(tmp_path / "t.db"),
+        signal_profile="custom",
+        risk_per_trade_pct=1.0,
+        use_mt5_balance_for_sizing=True,
+        risk_balance_source="equity",
+    )
+    db = SignalDB(cfg.db_path)
+    engine = ExecutionEngine(cfg, db)
+
+    monkeypatch.setattr("core.execution.mt5.account_info", lambda: SimpleNamespace(equity=5000.0, balance=4000.0))
+    risk_amount = engine._resolve_risk_amount({"risk_amount": 25.0})
+    assert risk_amount == 50.0
+
+
+def test_resolve_risk_amount_fallback_to_plan_when_mt5_unavailable(tmp_path, monkeypatch) -> None:
+    cfg = Config(
+        db_path=str(tmp_path / "t.db"),
+        signal_profile="custom",
+        risk_per_trade_pct=1.0,
+        use_mt5_balance_for_sizing=True,
+    )
+    db = SignalDB(cfg.db_path)
+    engine = ExecutionEngine(cfg, db)
+
+    monkeypatch.setattr("core.execution.mt5.account_info", lambda: None)
+    risk_amount = engine._resolve_risk_amount({"risk_amount": 25.0})
+    assert risk_amount == 25.0

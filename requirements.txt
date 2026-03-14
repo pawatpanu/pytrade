@@ -6,4 +6,5 @@ python-dotenv>=1.0.1
 requests>=2.32.0
 schedule>=1.2.0
 streamlit>=1.44.0
+streamlit-autorefresh>=1.0.1
 pytest>=8.2.0

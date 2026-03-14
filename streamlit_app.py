@@ -6,7 +6,7 @@ import re
 import sqlite3
 import subprocess
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -14,17 +14,24 @@ import streamlit as st
 
 from core.logger_db import SignalDB
 
+try:
+    from streamlit_autorefresh import st_autorefresh
+except Exception:
+    st_autorefresh = None
+
 ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
 PID_DIR = ROOT / ".runtime"
 PID_FILE = PID_DIR / "daemon_pid.json"
 TASK_DAEMON = "PyTradeDaemon"
 TASK_DASHBOARD = "PyTradeDashboard"
+BANGKOK_TZ = "Asia/Bangkok"
 
 TXT = {
     "th": {
         "title": "ศูนย์ควบคุม PyTrade",
         "tab_dashboard": "แดชบอร์ด",
+        "tab_performance": "ผลงาน",
         "tab_portfolio": "สถานะพอร์ต",
         "tab_config": "ตั้งค่า",
         "tab_guide": "คู่มือใช้งาน",
@@ -61,6 +68,41 @@ TXT = {
         "orders": "ออเดอร์ล่าสุด",
         "signals": "สัญญาณล่าสุด",
         "events": "เหตุการณ์สแกนล่าสุด",
+        "manual_orders": "ออเดอร์ที่เปิด/ปิดเอง (MT5)",
+        "manual_open_positions": "ออเดอร์เปิดเอง (ยังถืออยู่)",
+        "manual_closed_deals": "ออเดอร์ปิดเองล่าสุด",
+        "manual_none_open": "ไม่พบออเดอร์เปิดเอง",
+        "manual_none_closed": "ไม่พบออเดอร์ปิดเองล่าสุด",
+        "manual_days": "ดูย้อนหลัง (วัน)",
+        "manual_error": "ดึงข้อมูลออเดอร์เปิด/ปิดเองไม่สำเร็จ",
+        "sizing_title": "สถานะคำนวณขนาดไม้",
+        "sizing_mode": "โหมดคำนวณ",
+        "sizing_last_risk": "Risk ล่าสุด",
+        "sizing_last_volume": "Lot ล่าสุด",
+        "sizing_last_symbol": "สัญลักษณ์ล่าสุด",
+        "sizing_dynamic": "Dynamic จาก MT5",
+        "sizing_static": "Static จากแผนสัญญาณ",
+        "performance_title": "ผลงานทั้งหมด (พร้อมตัวกรอง)",
+        "perf_date_range": "ช่วงวันที่",
+        "perf_quick_range": "ช่วงเวลาเร็ว",
+        "perf_today": "วันนี้",
+        "perf_7d": "7 วัน",
+        "perf_30d": "30 วัน",
+        "perf_all": "ทั้งหมด",
+        "perf_symbol": "สัญลักษณ์",
+        "perf_status": "สถานะ",
+        "perf_direction": "ทิศทาง",
+        "perf_reason": "เหตุผล",
+        "perf_category": "หมวดสัญญาณ",
+        "perf_closed_only": "เฉพาะออเดอร์ปิดแล้ว",
+        "perf_rows": "จำนวนรายการ",
+        "perf_net_pnl": "กำไร/ขาดทุนสุทธิ",
+        "perf_win_rate": "อัตราชนะ",
+        "perf_profit_factor": "Profit Factor",
+        "perf_avg_pnl": "เฉลี่ยต่อออเดอร์",
+        "perf_pnl_curve": "กราฟกำไร/ขาดทุนสะสม",
+        "perf_no_data": "ไม่มีข้อมูลตามตัวกรอง",
+        "perf_download": "ดาวน์โหลดผลลัพธ์ (CSV)",
         "no_orders": "ยังไม่มีออเดอร์",
         "no_signals": "ยังไม่มีสัญญาณ",
         "no_events": "ยังไม่มีเหตุการณ์สแกน",
@@ -85,6 +127,18 @@ TXT = {
         "save_env": "บันทึก .env",
         "saved": "บันทึก .env เรียบร้อย",
         "config_wizard": "ตัวช่วยปรับค่าระบบ",
+        "account_switcher": "สวิตช์สลับบัญชี MT5",
+        "account_mode": "โหมดบัญชีที่ใช้งาน",
+        "account_demo": "บัญชี Demo",
+        "account_live": "บัญชีจริง",
+        "account_login": "MT5_LOGIN",
+        "account_password": "MT5_PASSWORD",
+        "account_server": "MT5_SERVER",
+        "save_account_profiles": "บันทึกชุดบัญชี",
+        "apply_account_mode": "สลับบัญชีมาใช้งานทันที",
+        "account_saved": "บันทึกชุดบัญชีเรียบร้อย",
+        "account_switched": "สลับบัญชีที่ใช้งานเรียบร้อย",
+        "account_missing": "ข้อมูลบัญชีโหมดที่เลือกไม่ครบ",
         "preset": "โปรไฟล์สำเร็จรูป",
         "apply_preset": "ใช้โปรไฟล์นี้",
         "preset_applied": "อัปเดตโปรไฟล์เรียบร้อย",
@@ -118,6 +172,7 @@ TXT = {
     "en": {
         "title": "PyTrade Control Center",
         "tab_dashboard": "Dashboard",
+        "tab_performance": "Performance",
         "tab_portfolio": "Portfolio",
         "tab_config": "Config",
         "tab_guide": "Guide",
@@ -154,6 +209,41 @@ TXT = {
         "orders": "Recent Orders",
         "signals": "Recent Signals",
         "events": "Recent Scan Events",
+        "manual_orders": "Manual Orders (MT5)",
+        "manual_open_positions": "Manual Open Positions",
+        "manual_closed_deals": "Recent Manual Closed Deals",
+        "manual_none_open": "No manual open positions",
+        "manual_none_closed": "No recent manual closed deals",
+        "manual_days": "History lookback (days)",
+        "manual_error": "Failed to fetch manual order data",
+        "sizing_title": "Position Sizing Status",
+        "sizing_mode": "Sizing mode",
+        "sizing_last_risk": "Last risk amount",
+        "sizing_last_volume": "Last lot size",
+        "sizing_last_symbol": "Last symbol",
+        "sizing_dynamic": "Dynamic from MT5",
+        "sizing_static": "Static from signal plan",
+        "performance_title": "All Performance (Filterable)",
+        "perf_date_range": "Date Range",
+        "perf_quick_range": "Quick Range",
+        "perf_today": "Today",
+        "perf_7d": "7 Days",
+        "perf_30d": "30 Days",
+        "perf_all": "All",
+        "perf_symbol": "Symbol",
+        "perf_status": "Status",
+        "perf_direction": "Direction",
+        "perf_reason": "Reason",
+        "perf_category": "Signal Category",
+        "perf_closed_only": "Closed orders only",
+        "perf_rows": "Rows",
+        "perf_net_pnl": "Net PnL",
+        "perf_win_rate": "Win Rate",
+        "perf_profit_factor": "Profit Factor",
+        "perf_avg_pnl": "Avg PnL / trade",
+        "perf_pnl_curve": "Cumulative PnL Curve",
+        "perf_no_data": "No data for selected filters",
+        "perf_download": "Download filtered results (CSV)",
         "no_orders": "No orders yet",
         "no_signals": "No signals yet",
         "no_events": "No scan events",
@@ -178,6 +268,18 @@ TXT = {
         "save_env": "Save .env",
         "saved": ".env saved",
         "config_wizard": "Configuration Wizard",
+        "account_switcher": "MT5 Account Switcher",
+        "account_mode": "Active account mode",
+        "account_demo": "Demo Account",
+        "account_live": "Live Account",
+        "account_login": "MT5_LOGIN",
+        "account_password": "MT5_PASSWORD",
+        "account_server": "MT5_SERVER",
+        "save_account_profiles": "Save account profiles",
+        "apply_account_mode": "Apply selected account now",
+        "account_saved": "Account profiles saved",
+        "account_switched": "Active account switched",
+        "account_missing": "Selected account profile is incomplete",
         "preset": "Preset",
         "apply_preset": "Apply preset",
         "preset_applied": "Preset applied",
@@ -219,6 +321,8 @@ HELP = {
         "entry_zone_max_atr": "ระยะห่างจากโซนเข้า (ATR) ยิ่งต่ำยิ่งไม่ไล่ราคา",
         "m5_min_triggers": "จำนวน trigger M5 ขั้นต่ำก่อนผ่านเงื่อนไขเข้า",
         "risk_per_trade_pct": "เปอร์เซ็นต์ความเสี่ยงต่อไม้เทียบทุน",
+        "use_mt5_balance_for_sizing": "ใช้ยอดเงินบัญชี MT5 ปัจจุบันคำนวณขนาดไม้แบบไดนามิก",
+        "risk_balance_source": "เลือกใช้ equity (แนะนำ) หรือ balance เป็นฐานคำนวณ lot",
         "daily_loss_limit": "ขาดทุนสะสมต่อวันสูงสุดก่อนหยุดส่งคำสั่ง",
         "max_open_positions": "จำนวนออเดอร์เปิดพร้อมกันสูงสุด (ฐาน)",
         "order_cooldown_minutes": "เวลาพักก่อนเข้าออเดอร์ซ้ำสัญลักษณ์เดิม",
@@ -259,6 +363,8 @@ HELP = {
         "entry_zone_max_atr": "Max distance from entry zone in ATR",
         "m5_min_triggers": "Minimum number of M5 triggers before entry",
         "risk_per_trade_pct": "Risk per trade as % of account",
+        "use_mt5_balance_for_sizing": "Use live MT5 account value for dynamic position sizing",
+        "risk_balance_source": "Choose equity (recommended) or balance as lot sizing base",
         "daily_loss_limit": "Daily realized loss cap before blocking new orders",
         "max_open_positions": "Base max concurrent open orders",
         "order_cooldown_minutes": "Cooldown before same-symbol re-entry",
@@ -299,6 +405,56 @@ def t(key: str) -> str:
     return TXT.get(lang, TXT["th"]).get(key, key)
 
 
+def _parse_bool_text(v: str | None, default: bool = False) -> bool:
+    if v is None:
+        return default
+    return str(v).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _init_ui_state_from_query() -> None:
+    """Restore UI prefs from URL query params once, then keep session changes."""
+    try:
+        qp = st.query_params
+        if "auto_refresh" not in st.session_state:
+            st.session_state["auto_refresh"] = _parse_bool_text(qp.get("ar"), default=False)
+
+        if "refresh_sec" not in st.session_state:
+            rs_raw = qp.get("rs")
+            rs = int(rs_raw) if rs_raw is not None and str(rs_raw).strip() else 15
+            st.session_state["refresh_sec"] = max(5, min(300, rs))
+
+        if "lang" not in st.session_state:
+            lang = str(qp.get("lang", "th")).lower()
+            st.session_state["lang"] = lang if lang in {"th", "en"} else "th"
+    except Exception:
+        if "auto_refresh" not in st.session_state:
+            st.session_state["auto_refresh"] = False
+        if "refresh_sec" not in st.session_state:
+            st.session_state["refresh_sec"] = 15
+
+
+def _persist_ui_state_to_query() -> None:
+    try:
+        st.query_params["ar"] = "1" if bool(st.session_state.get("auto_refresh", False)) else "0"
+        st.query_params["rs"] = str(int(st.session_state.get("refresh_sec", 15)))
+        st.query_params["lang"] = str(st.session_state.get("lang", "th"))
+    except Exception:
+        pass
+
+
+def _add_thai_time_columns(df: pd.DataFrame, mapping: dict[str, str]) -> pd.DataFrame:
+    """Add Bangkok time columns from ISO/UTC timestamp columns."""
+    if df.empty:
+        return df
+    out = df.copy()
+    for source_col, target_col in mapping.items():
+        if source_col not in out.columns:
+            continue
+        parsed = pd.to_datetime(out[source_col], utc=True, errors="coerce")
+        out[target_col] = parsed.dt.tz_convert(BANGKOK_TZ).dt.strftime("%Y-%m-%d %H:%M:%S")
+    return out
+
+
 def h(key: str) -> str:
     lang = st.session_state.get("lang", "th")
     return HELP.get(lang, HELP["th"]).get(key, "")
@@ -312,6 +468,8 @@ def _config_help_df() -> pd.DataFrame:
         "entry_zone_max_atr": "ENTRY_ZONE_MAX_ATR",
         "m5_min_triggers": "M5_MIN_TRIGGERS",
         "risk_per_trade_pct": "RISK_PER_TRADE_PCT",
+        "use_mt5_balance_for_sizing": "USE_MT5_BALANCE_FOR_SIZING",
+        "risk_balance_source": "RISK_BALANCE_SOURCE",
         "daily_loss_limit": "DAILY_LOSS_LIMIT",
         "max_open_positions": "MAX_OPEN_POSITIONS",
         "order_cooldown_minutes": "ORDER_COOLDOWN_MINUTES",
@@ -766,6 +924,98 @@ def _metrics(db_path: Path) -> dict[str, float]:
     }
 
 
+def _fetch_manual_mt5_activity(env: dict[str, str], lookback_days: int = 7, limit: int = 200) -> tuple[pd.DataFrame, pd.DataFrame, str | None]:
+    """Fetch manual open positions and closed deals directly from MT5."""
+    try:
+        import MetaTrader5 as mt5
+    except Exception as exc:
+        return pd.DataFrame(), pd.DataFrame(), str(exc)
+
+    kwargs = {}
+    if env.get("MT5_PATH"):
+        kwargs["path"] = env["MT5_PATH"]
+
+    if not mt5.initialize(**kwargs):
+        code, msg = mt5.last_error()
+        return pd.DataFrame(), pd.DataFrame(), f"{code} {msg}"
+
+    try:
+        login = env.get("MT5_LOGIN")
+        password = env.get("MT5_PASSWORD")
+        server = env.get("MT5_SERVER")
+        if login and password and server:
+            mt5.login(login=int(login), password=password, server=server)
+
+        bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
+
+        positions = mt5.positions_get() or []
+        open_rows: list[dict[str, object]] = []
+        for p in positions:
+            magic = int(getattr(p, "magic", 0) or 0)
+            if magic == bot_magic:
+                continue
+            p_type = int(getattr(p, "type", -1) or -1)
+            direction = "BUY" if p_type == 0 else ("SELL" if p_type == 1 else str(p_type))
+            open_rows.append(
+                {
+                    "ticket": int(getattr(p, "ticket", 0) or 0),
+                    "position_id": int(getattr(p, "identifier", 0) or 0),
+                    "symbol": str(getattr(p, "symbol", "")),
+                    "direction": direction,
+                    "volume": float(getattr(p, "volume", 0.0) or 0.0),
+                    "price_open": float(getattr(p, "price_open", 0.0) or 0.0),
+                    "price_now": float(getattr(p, "price_current", 0.0) or 0.0),
+                    "profit": float(getattr(p, "profit", 0.0) or 0.0),
+                    "magic": magic,
+                    "comment": str(getattr(p, "comment", "")),
+                    "timestamp": datetime.fromtimestamp(int(getattr(p, "time", 0) or 0), timezone.utc).isoformat(),
+                }
+            )
+        open_df = _add_thai_time_columns(pd.DataFrame(open_rows), {"timestamp": "timestamp_th"})
+
+        time_to = datetime.now(timezone.utc)
+        time_from = time_to - timedelta(days=max(1, lookback_days))
+        deals = mt5.history_deals_get(time_from, time_to) or []
+        closed_rows: list[dict[str, object]] = []
+        for d in deals:
+            magic = int(getattr(d, "magic", 0) or 0)
+            if magic == bot_magic:
+                continue
+            entry = int(getattr(d, "entry", -1) or -1)
+            if entry not in (1, 3):
+                continue
+            d_type = int(getattr(d, "type", -1) or -1)
+            direction = "BUY" if d_type == 0 else ("SELL" if d_type == 1 else str(d_type))
+            closed_rows.append(
+                {
+                    "deal": int(getattr(d, "ticket", 0) or 0),
+                    "position_id": int(getattr(d, "position_id", 0) or 0),
+                    "symbol": str(getattr(d, "symbol", "")),
+                    "direction": direction,
+                    "volume": float(getattr(d, "volume", 0.0) or 0.0),
+                    "price": float(getattr(d, "price", 0.0) or 0.0),
+                    "profit": float(getattr(d, "profit", 0.0) or 0.0),
+                    "commission": float(getattr(d, "commission", 0.0) or 0.0),
+                    "swap": float(getattr(d, "swap", 0.0) or 0.0),
+                    "magic": magic,
+                    "comment": str(getattr(d, "comment", "")),
+                    "timestamp": datetime.fromtimestamp(int(getattr(d, "time", 0) or 0), timezone.utc).isoformat(),
+                }
+            )
+        closed_df = pd.DataFrame(closed_rows)
+        if not closed_df.empty:
+            closed_df = closed_df.sort_values("deal", ascending=False).head(max(1, limit))
+        closed_df = _add_thai_time_columns(closed_df, {"timestamp": "timestamp_th"})
+        return open_df, closed_df, None
+    except Exception as exc:
+        return pd.DataFrame(), pd.DataFrame(), str(exc)
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+
 def _render_controls(db_path: Path) -> None:
     st.sidebar.header(t("controls"))
     st.sidebar.caption(f"{t('db')}: {db_path}")
@@ -784,13 +1034,18 @@ def _render_controls(db_path: Path) -> None:
     )
 
     st.sidebar.selectbox(t("language"), ["th", "en"], key="lang")
-    st.sidebar.checkbox(t("auto_refresh"), key="auto_refresh", value=False)
-    st.sidebar.number_input(t("refresh_sec"), min_value=5, max_value=300, value=15, step=5, key="refresh_sec")
+    st.sidebar.checkbox(t("auto_refresh"), key="auto_refresh")
+    st.sidebar.number_input(t("refresh_sec"), min_value=5, max_value=300, step=5, key="refresh_sec")
     st.sidebar.caption(t("refresh_hint"))
+    _persist_ui_state_to_query()
 
     if st.session_state.get("auto_refresh"):
         sec = int(st.session_state.get("refresh_sec", 15))
-        st.markdown(f"<meta http-equiv='refresh' content='{sec}'>", unsafe_allow_html=True)
+        if st_autorefresh is not None:
+            st_autorefresh(interval=sec * 1000, key="pytrade_soft_refresh")
+        else:
+            st.caption("Tip: install `streamlit-autorefresh` for smoother refresh without full page reload.")
+            st.markdown(f"<meta http-equiv='refresh' content='{sec}'>", unsafe_allow_html=True)
 
     if st.sidebar.button(t("scan_once"), use_container_width=True):
         with st.sidebar.status("...", expanded=True) as status:
@@ -839,6 +1094,34 @@ def _render_dashboard(db_path: Path) -> None:
     c4.metric(t("failed"), m["failed"])
     c5.metric(t("today_pnl"), pnl_text)
 
+    st.caption(t("sizing_title"))
+    sizing_mode = t("sizing_dynamic") if _parse_bool_env(env, "USE_MT5_BALANCE_FOR_SIZING", True) else t("sizing_static")
+    sizing_base = env.get("RISK_BALANCE_SOURCE", "equity")
+    last_sent = _query_df(
+        db_path,
+        """
+        SELECT symbol, normalized_symbol, volume, risk_amount, timestamp
+        FROM orders
+        WHERE status='sent'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+    )
+    s1, s2, s3, s4 = st.columns(4)
+    s1.metric(t("sizing_mode"), f"{sizing_mode} ({sizing_base})")
+    if last_sent.empty:
+        s2.metric(t("sizing_last_symbol"), "-")
+        s3.metric(t("sizing_last_risk"), "-")
+        s4.metric(t("sizing_last_volume"), "-")
+    else:
+        row = last_sent.iloc[0]
+        symbol_text = str(row.get("normalized_symbol") or row.get("symbol") or "-")
+        risk_text = f"{float(row.get('risk_amount') or 0.0):.2f}"
+        lot_text = f"{float(row.get('volume') or 0.0):.4f}"
+        s2.metric(t("sizing_last_symbol"), symbol_text)
+        s3.metric(t("sizing_last_risk"), risk_text)
+        s4.metric(t("sizing_last_volume"), lot_text)
+
     st.subheader(t("cleanup"))
     cc1, cc2, cc3 = st.columns(3)
     with cc1:
@@ -881,9 +1164,16 @@ def _render_dashboard(db_path: Path) -> None:
     orders = _query_df(
         db_path,
         """
-        SELECT id, timestamp, symbol, direction, status, reason, score, volume, entry_price, stop_loss, take_profit, pnl, closed_at
+        SELECT id, timestamp, symbol, direction, status, reason, score, volume, risk_amount, entry_price, stop_loss, take_profit, pnl, closed_at
         FROM orders ORDER BY id DESC LIMIT 200
         """,
+    )
+    orders = _add_thai_time_columns(
+        orders,
+        {
+            "timestamp": "timestamp_th",
+            "closed_at": "closed_at_th",
+        },
     )
     if orders.empty:
         st.info(t("no_orders"))
@@ -913,6 +1203,7 @@ def _render_dashboard(db_path: Path) -> None:
         db_path,
         "SELECT id, timestamp, symbol, direction, score, category, hard_filters_passed FROM signals ORDER BY id DESC LIMIT 200",
     )
+    signals = _add_thai_time_columns(signals, {"timestamp": "timestamp_th"})
     if signals.empty:
         st.info(t("no_signals"))
     else:
@@ -941,11 +1232,169 @@ def _render_dashboard(db_path: Path) -> None:
         db_path,
         "SELECT id, timestamp, symbol, level, message FROM scan_events ORDER BY id DESC LIMIT 200",
     )
+    events = _add_thai_time_columns(events, {"timestamp": "timestamp_th"})
     if events.empty:
         st.info(t("no_events"))
     else:
         st.dataframe(events, use_container_width=True, height=260)
         st.download_button(t("download_events"), data=events.to_csv(index=False), file_name="events_recent.csv", mime="text/csv")
+
+    st.subheader(t("manual_orders"))
+    lookback_days = st.slider(t("manual_days"), min_value=1, max_value=90, value=7, step=1, key="manual_lookback_days")
+    open_manual, closed_manual, manual_err = _fetch_manual_mt5_activity(env, lookback_days=lookback_days, limit=200)
+    if manual_err:
+        st.warning(f"{t('manual_error')}: {manual_err}")
+    st.caption(t("manual_open_positions"))
+    if open_manual.empty:
+        st.info(t("manual_none_open"))
+    else:
+        open_cols = [c for c in ["ticket", "position_id", "timestamp_th", "timestamp", "symbol", "direction", "volume", "price_open", "price_now", "profit", "magic", "comment"] if c in open_manual.columns]
+        st.dataframe(open_manual[open_cols], use_container_width=True, height=220)
+
+    st.caption(t("manual_closed_deals"))
+    if closed_manual.empty:
+        st.info(t("manual_none_closed"))
+    else:
+        close_cols = [c for c in ["deal", "position_id", "timestamp_th", "timestamp", "symbol", "direction", "volume", "price", "profit", "commission", "swap", "magic", "comment"] if c in closed_manual.columns]
+        st.dataframe(closed_manual[close_cols], use_container_width=True, height=260)
+
+
+def _render_performance(db_path: Path) -> None:
+    st.subheader(t("performance_title"))
+    orders = _query_df(
+        db_path,
+        """
+        SELECT id, timestamp, symbol, direction, status, reason, score, category, volume, entry_price, stop_loss, take_profit, pnl, closed_at
+        FROM orders ORDER BY id DESC LIMIT 5000
+        """,
+    )
+    if orders.empty:
+        st.info(t("perf_no_data"))
+        return
+
+    orders = _add_thai_time_columns(
+        orders,
+        {
+            "timestamp": "timestamp_th",
+            "closed_at": "closed_at_th",
+        },
+    )
+    orders["timestamp_utc_dt"] = pd.to_datetime(orders["timestamp"], utc=True, errors="coerce")
+    orders["closed_at_utc_dt"] = pd.to_datetime(orders["closed_at"], utc=True, errors="coerce")
+    orders["timestamp_bkk_dt"] = orders["timestamp_utc_dt"].dt.tz_convert(BANGKOK_TZ)
+    orders["pnl"] = pd.to_numeric(orders["pnl"], errors="coerce")
+
+    ts_dates = orders["timestamp_bkk_dt"].dropna().dt.date
+    default_end = ts_dates.max() if not ts_dates.empty else datetime.now().date()
+    default_start = max((ts_dates.min() if not ts_dates.empty else default_end), default_end - timedelta(days=7))
+
+    quick_opts = [t("perf_today"), t("perf_7d"), t("perf_30d"), t("perf_all")]
+    quick = st.radio(t("perf_quick_range"), quick_opts, horizontal=True, index=1)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        date_range = st.date_input(
+            t("perf_date_range"),
+            value=(default_start, default_end),
+        )
+    with c2:
+        sym_opts = sorted(orders["symbol"].dropna().astype(str).unique().tolist())
+        f_symbols = st.multiselect(t("perf_symbol"), options=sym_opts, default=sym_opts)
+    with c3:
+        closed_only = st.checkbox(t("perf_closed_only"), value=False)
+
+    c4, c5, c6, c7 = st.columns(4)
+    with c4:
+        status_opts = sorted(orders["status"].dropna().astype(str).unique().tolist())
+        f_status = st.multiselect(t("perf_status"), options=status_opts, default=status_opts)
+    with c5:
+        dir_opts = sorted(orders["direction"].dropna().astype(str).unique().tolist())
+        f_dirs = st.multiselect(t("perf_direction"), options=dir_opts, default=dir_opts)
+    with c6:
+        cat_opts = sorted(orders["category"].dropna().astype(str).unique().tolist())
+        f_cat = st.multiselect(t("perf_category"), options=cat_opts, default=cat_opts)
+    with c7:
+        reason_opts = sorted(orders["reason"].fillna("").astype(str).unique().tolist())
+        f_reason = st.multiselect(t("perf_reason"), options=reason_opts, default=reason_opts)
+
+    view = orders.copy()
+    quick_end = default_end
+    if quick == t("perf_today"):
+        d0, d1 = quick_end, quick_end
+    elif quick == t("perf_7d"):
+        d0, d1 = quick_end - timedelta(days=6), quick_end
+    elif quick == t("perf_30d"):
+        d0, d1 = quick_end - timedelta(days=29), quick_end
+    elif isinstance(date_range, tuple) and len(date_range) == 2:
+        d0, d1 = date_range
+    else:
+        d0, d1 = None, None
+
+    if quick != t("perf_all") and d0 and d1:
+        view = view[view["timestamp_bkk_dt"].dt.date.between(d0, d1)]
+    if f_symbols:
+        view = view[view["symbol"].astype(str).isin(f_symbols)]
+    if f_status:
+        view = view[view["status"].astype(str).isin(f_status)]
+    if f_dirs:
+        view = view[view["direction"].astype(str).isin(f_dirs)]
+    if f_cat:
+        view = view[view["category"].astype(str).isin(f_cat)]
+    if f_reason:
+        view = view[view["reason"].fillna("").astype(str).isin(f_reason)]
+    if closed_only:
+        view = view[view["status"] == "closed"]
+
+    if view.empty:
+        st.info(t("perf_no_data"))
+        return
+
+    closed = view[view["status"] == "closed"].copy()
+    closed = closed[closed["pnl"].notna()]
+    wins = float((closed["pnl"] > 0).sum())
+    losses = float((closed["pnl"] < 0).sum())
+    win_rate = (wins / (wins + losses) * 100.0) if (wins + losses) > 0 else 0.0
+    gross_profit = float(closed.loc[closed["pnl"] > 0, "pnl"].sum()) if not closed.empty else 0.0
+    gross_loss_abs = abs(float(closed.loc[closed["pnl"] < 0, "pnl"].sum())) if not closed.empty else 0.0
+    profit_factor = (gross_profit / gross_loss_abs) if gross_loss_abs > 0 else (999.0 if gross_profit > 0 else 0.0)
+    net_pnl = float(closed["pnl"].sum()) if not closed.empty else 0.0
+    avg_pnl = float(closed["pnl"].mean()) if not closed.empty else 0.0
+
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric(t("perf_rows"), len(view))
+    k2.metric(t("perf_net_pnl"), f"{net_pnl:+.2f}")
+    k3.metric(t("perf_win_rate"), f"{win_rate:.2f}%")
+    k4.metric(t("perf_profit_factor"), f"{profit_factor:.2f}")
+    k5.metric(t("perf_avg_pnl"), f"{avg_pnl:+.2f}")
+
+    if not closed.empty:
+        curve = closed.sort_values("closed_at_utc_dt").copy()
+        curve["cum_pnl"] = curve["pnl"].cumsum()
+        st.caption(t("perf_pnl_curve"))
+        st.line_chart(curve[["closed_at_utc_dt", "cum_pnl"]].set_index("closed_at_utc_dt"), use_container_width=True, height=220)
+
+    show_cols = [
+        "id",
+        "timestamp_th",
+        "timestamp",
+        "symbol",
+        "direction",
+        "status",
+        "reason",
+        "score",
+        "category",
+        "volume",
+        "entry_price",
+        "stop_loss",
+        "take_profit",
+        "pnl",
+        "closed_at_th",
+        "closed_at",
+    ]
+    show_cols = [c for c in show_cols if c in view.columns]
+    out = view[show_cols].copy()
+    st.dataframe(out, use_container_width=True, height=360)
+    st.download_button(t("perf_download"), data=out.to_csv(index=False), file_name="performance_filtered.csv", mime="text/csv")
 
 
 def _render_portfolio() -> None:
@@ -1034,6 +1483,79 @@ def _render_config_editor() -> None:
         min_alert_env = "alert"
 
     st.markdown(f"### {t('config_wizard')}")
+    st.markdown(f"### {t('account_switcher')}")
+    default_mode = env.get("ACCOUNT_MODE", env.get("EXECUTION_MODE", "demo")).strip().lower()
+    if default_mode not in {"demo", "live"}:
+        default_mode = "demo"
+
+    with st.form("account_switch_form", clear_on_submit=False):
+        active_mode = st.radio(
+            t("account_mode"),
+            options=["demo", "live"],
+            index=0 if default_mode == "demo" else 1,
+            horizontal=True,
+        )
+        a1, a2 = st.columns(2)
+        with a1:
+            st.markdown(f"#### {t('account_demo')}")
+            demo_login = st.text_input(f"{t('account_login')} (DEMO)", value=env.get("MT5_LOGIN_DEMO", env.get("MT5_LOGIN", "")))
+            demo_password = st.text_input(f"{t('account_password')} (DEMO)", value=env.get("MT5_PASSWORD_DEMO", env.get("MT5_PASSWORD", "")), type="password")
+            demo_server = st.text_input(f"{t('account_server')} (DEMO)", value=env.get("MT5_SERVER_DEMO", env.get("MT5_SERVER", "")))
+        with a2:
+            st.markdown(f"#### {t('account_live')}")
+            live_login = st.text_input(f"{t('account_login')} (LIVE)", value=env.get("MT5_LOGIN_LIVE", ""))
+            live_password = st.text_input(f"{t('account_password')} (LIVE)", value=env.get("MT5_PASSWORD_LIVE", ""), type="password")
+            live_server = st.text_input(f"{t('account_server')} (LIVE)", value=env.get("MT5_SERVER_LIVE", ""))
+
+        b1, b2 = st.columns(2)
+        save_profiles = b1.form_submit_button(t("save_account_profiles"), use_container_width=True)
+        apply_switch = b2.form_submit_button(t("apply_account_mode"), type="primary", use_container_width=True)
+
+        profile_updates = {
+            "ACCOUNT_MODE": active_mode,
+            "MT5_LOGIN_DEMO": demo_login.strip(),
+            "MT5_PASSWORD_DEMO": demo_password.strip(),
+            "MT5_SERVER_DEMO": demo_server.strip(),
+            "MT5_LOGIN_LIVE": live_login.strip(),
+            "MT5_PASSWORD_LIVE": live_password.strip(),
+            "MT5_SERVER_LIVE": live_server.strip(),
+        }
+
+        if save_profiles:
+            _upsert_env_values(profile_updates)
+            db.log_config_change(source="streamlit_account", summary="save_account_profiles", changes={"ACCOUNT_MODE": active_mode})
+            st.success(t("account_saved"))
+            st.info(t("restart_hint"))
+            st.rerun()
+
+        if apply_switch:
+            selected = {
+                "demo": (demo_login.strip(), demo_password.strip(), demo_server.strip()),
+                "live": (live_login.strip(), live_password.strip(), live_server.strip()),
+            }.get(active_mode, ("", "", ""))
+            login_v, password_v, server_v = selected
+            if not (login_v and password_v and server_v):
+                st.warning(t("account_missing"))
+            else:
+                apply_updates = dict(profile_updates)
+                apply_updates.update(
+                    {
+                        "MT5_LOGIN": login_v,
+                        "MT5_PASSWORD": password_v,
+                        "MT5_SERVER": server_v,
+                        "EXECUTION_MODE": "demo" if active_mode == "demo" else "live",
+                    }
+                )
+                _upsert_env_values(apply_updates)
+                db.log_config_change(
+                    source="streamlit_account",
+                    summary=f"apply_account_mode:{active_mode}",
+                    changes={"ACCOUNT_MODE": active_mode, "EXECUTION_MODE": apply_updates["EXECUTION_MODE"]},
+                )
+                st.success(t("account_switched"))
+                st.info(t("restart_hint"))
+                st.rerun()
+
     with st.expander("ความหมายแต่ละหัวข้อ / Section meanings", expanded=False):
         if st.session_state.get("lang", "th") == "th":
             st.markdown(
@@ -1194,6 +1716,17 @@ def _render_config_editor() -> None:
         with r3:
             sl_mult = st.number_input("SL_ATR_MULTIPLIER", min_value=0.5, max_value=10.0, value=_parse_float_env(env, "SL_ATR_MULTIPLIER", 1.5), step=0.1, help=h("sl_atr_multiplier"))
             target_rr = st.number_input("TARGET_RR", min_value=0.5, max_value=10.0, value=_parse_float_env(env, "TARGET_RR", 1.8), step=0.1, help=h("target_rr"))
+            use_mt5_balance_for_sizing = st.checkbox(
+                "USE_MT5_BALANCE_FOR_SIZING",
+                value=_parse_bool_env(env, "USE_MT5_BALANCE_FOR_SIZING", True),
+                help=h("use_mt5_balance_for_sizing"),
+            )
+            risk_balance_source = st.selectbox(
+                "RISK_BALANCE_SOURCE",
+                ["equity", "balance"],
+                index=0 if env.get("RISK_BALANCE_SOURCE", "equity").strip().lower() == "equity" else 1,
+                help=h("risk_balance_source"),
+            )
 
         st.markdown("#### Premium Stack")
         ps1, ps2, ps3 = st.columns(3)
@@ -1215,6 +1748,8 @@ def _render_config_editor() -> None:
                 "ENTRY_ZONE_MAX_ATR": f"{entry_zone:.2f}",
                 "M5_MIN_TRIGGERS": str(m5_triggers),
                 "RISK_PER_TRADE_PCT": f"{risk_pct:.2f}",
+                "USE_MT5_BALANCE_FOR_SIZING": str(use_mt5_balance_for_sizing).lower(),
+                "RISK_BALANCE_SOURCE": risk_balance_source,
                 "DAILY_LOSS_LIMIT": f"{daily_loss:.2f}",
                 "MAX_OPEN_POSITIONS": str(max_open),
                 "ORDER_COOLDOWN_MINUTES": str(cooldown),
@@ -1494,7 +2029,7 @@ def _render_deploy_wizard() -> None:
 def main() -> None:
     # Must be the first Streamlit command.
     st.set_page_config(page_title="PyTrade Control Center", layout="wide")
-
+    _init_ui_state_from_query()
     if "lang" not in st.session_state:
         st.session_state["lang"] = "th"
     st.title(t("title"))
@@ -1502,18 +2037,20 @@ def main() -> None:
     db_path = _load_env_db_path()
     _render_controls(db_path)
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        [t("tab_dashboard"), t("tab_portfolio"), t("tab_config"), t("tab_guide"), t("tab_deploy")]
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        [t("tab_dashboard"), t("tab_performance"), t("tab_portfolio"), t("tab_config"), t("tab_guide"), t("tab_deploy")]
     )
     with tab1:
         _render_dashboard(db_path)
     with tab2:
-        _render_portfolio()
+        _render_performance(db_path)
     with tab3:
-        _render_config_editor()
+        _render_portfolio()
     with tab4:
-        _render_guide()
+        _render_config_editor()
     with tab5:
+        _render_guide()
+    with tab6:
         _render_deploy_wizard()
 
 

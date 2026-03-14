@@ -162,6 +162,8 @@ class Config:
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     min_alert_category: str = field(default_factory=lambda: os.getenv("MIN_ALERT_CATEGORY", "alert").strip().lower())
     account_balance: float = field(default_factory=lambda: _parse_float(os.getenv("ACCOUNT_BALANCE"), 10000.0))
+    use_mt5_balance_for_sizing: bool = field(default_factory=lambda: _parse_bool(os.getenv("USE_MT5_BALANCE_FOR_SIZING"), True))
+    risk_balance_source: str = field(default_factory=lambda: os.getenv("RISK_BALANCE_SOURCE", "equity").strip().lower())
     risk_per_trade_pct: float = field(default_factory=lambda: _parse_float(os.getenv("RISK_PER_TRADE_PCT"), 1.0))
     sl_atr_multiplier: float = field(default_factory=lambda: _parse_float(os.getenv("SL_ATR_MULTIPLIER"), 1.5))
     target_rr: float = field(default_factory=lambda: _parse_float(os.getenv("TARGET_RR"), 1.8))
@@ -218,6 +220,8 @@ class Config:
         if self.min_execute_category not in {"alert", "strong", "premium"}:
             self.min_execute_category = "strong"
         self.execution_mode = "demo" if self.execution_mode != "live" else "live"
+        if self.risk_balance_source not in {"equity", "balance"}:
+            self.risk_balance_source = "equity"
         self.premium_stack_extra_slots = max(0, int(self.premium_stack_extra_slots))
         self.ultra_stack_extra_slots = max(0, int(self.ultra_stack_extra_slots))
         self.ultra_stack_score = max(0.0, float(self.ultra_stack_score))

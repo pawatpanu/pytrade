@@ -45,7 +45,10 @@ class ExecutionEngine:
         plan = signal.trade_plan or {}
         sl = float(plan.get("stop_loss", 0.0))
         tp = float(plan.get("take_profit", 0.0))
-        risk_amount = float(plan.get("risk_amount", 0.0))
+        risk_amount = self._resolve_risk_amount(plan)
+        if signal.trade_plan is None:
+            signal.trade_plan = {}
+        signal.trade_plan["risk_amount"] = risk_amount
         volume = self._calc_volume(symbol_info, entry, sl, risk_amount)
         if volume <= 0:
             logger.warning("Execution failed %s %s: invalid volume", signal.direction, signal.normalized_symbol)
@@ -118,6 +121,27 @@ class ExecutionEngine:
             tp,
             result.retcode,
         )
+
+    def _resolve_risk_amount(self, plan: dict[str, float]) -> float:
+        """Resolve risk amount for sizing using live account data when enabled."""
+        static_risk = float(plan.get("risk_amount", 0.0) or 0.0)
+        if not self.config.use_mt5_balance_for_sizing:
+            return max(static_risk, 0.0)
+
+        account_info = mt5.account_info()
+        if account_info is None:
+            return max(static_risk, 0.0)
+
+        if self.config.risk_balance_source == "balance":
+            base = float(getattr(account_info, "balance", 0.0) or 0.0)
+        else:
+            base = float(getattr(account_info, "equity", 0.0) or 0.0)
+
+        if base <= 0:
+            return max(static_risk, 0.0)
+
+        dynamic_risk = base * (float(self.config.risk_per_trade_pct) / 100.0)
+        return round(max(dynamic_risk, 0.0), 2)
 
     def sync_orders(self) -> None:
         """Sync locally-sent orders with MT5 to update close status and realized PnL."""
