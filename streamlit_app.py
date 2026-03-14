@@ -196,6 +196,10 @@ TXT = {
         "health_mt5_fail": "เชื่อม MT5 ไม่สำเร็จ",
         "health_support_bundle": "ดาวน์โหลด Support Bundle",
         "health_support_preview": "สรุปข้อมูลสำหรับตรวจปัญหา",
+        "health_version": "เวอร์ชันระบบ",
+        "health_git_branch": "สาขา Git",
+        "health_git_commit": "Commit ปัจจุบัน",
+        "health_git_commit_time": "เวลา commit ล่าสุด",
     },
     "en": {
         "title": "PyTrade Control Center",
@@ -365,6 +369,10 @@ TXT = {
         "health_mt5_fail": "MT5 connection failed",
         "health_support_bundle": "Download Support Bundle",
         "health_support_preview": "Support diagnostics summary",
+        "health_version": "System Version",
+        "health_git_branch": "Git Branch",
+        "health_git_commit": "Current Commit",
+        "health_git_commit_time": "Last Commit Time",
     },
 }
 
@@ -1030,6 +1038,35 @@ def _build_support_bundle(env: dict[str, str], db_path: Path) -> tuple[bytes, st
 
     file_name = f"pytrade_support_bundle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
     return mem.getvalue(), file_name, summary
+
+
+def _git_version_info() -> dict[str, str]:
+    branch = "-"
+    commit = "-"
+    commit_time = "-"
+    try:
+        code, out, _ = _run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], timeout=20)
+        if code == 0 and out:
+            branch = out.strip()
+    except Exception:
+        pass
+    try:
+        code, out, _ = _run_command(["git", "rev-parse", "--short", "HEAD"], timeout=20)
+        if code == 0 and out:
+            commit = out.strip()
+    except Exception:
+        pass
+    try:
+        code, out, _ = _run_command(["git", "log", "-1", "--format=%cI"], timeout=20)
+        if code == 0 and out:
+            commit_time = out.strip()
+    except Exception:
+        pass
+    return {
+        "branch": branch,
+        "commit": commit,
+        "commit_time": commit_time,
+    }
 
 
 def _project_python() -> str:
@@ -1734,6 +1771,7 @@ def _render_portfolio() -> None:
 def _render_system_health(db_path: Path) -> None:
     st.subheader(t("health_title"))
     env = _load_env_map()
+    db = SignalDB(str(db_path))
     venv_py = ROOT / ".venv" / "Scripts" / "python.exe"
     pid_info = _read_pid_info() or {}
     daemon_pid = int(pid_info.get("pid", 0) or 0)
@@ -1742,6 +1780,7 @@ def _render_system_health(db_path: Path) -> None:
     db_exists = db_path.exists()
     env_exists = ENV_PATH.exists()
     venv_exists = venv_py.exists()
+    git_info = _git_version_info()
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(t("health_venv"), t("health_exists") if venv_exists else t("health_missing"))
@@ -1771,18 +1810,26 @@ def _render_system_health(db_path: Path) -> None:
         f"DB_PATH={env.get('DB_PATH', 'signals.db')}"
     )
 
+    st.markdown(f"### {t('health_version')}")
+    v1, v2, v3 = st.columns(3)
+    v1.metric(t("health_git_branch"), git_info["branch"])
+    v2.metric(t("health_git_commit"), git_info["commit"])
+    v3.metric(t("health_git_commit_time"), git_info["commit_time"])
+
     m1, m2 = st.columns(2)
     with m1:
         if st.button(t("health_mt5_test"), width="stretch"):
             ok, payload = _test_mt5_connection(env)
             if ok:
+                db.log_scan_event("SYSTEM", "INFO", "health_mt5_test_ok", payload)
                 st.success(t("health_mt5_ok"))
                 st.json(payload)
             else:
+                db.log_scan_event("SYSTEM", "ERROR", "health_mt5_test_fail", payload)
                 st.error(f"{t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
     with m2:
         bundle_bytes, bundle_name, bundle_summary = _build_support_bundle(env, db_path)
-        st.download_button(
+        downloaded = st.download_button(
             t("health_support_bundle"),
             data=bundle_bytes,
             file_name=bundle_name,
@@ -1791,6 +1838,8 @@ def _render_system_health(db_path: Path) -> None:
         )
         with st.expander(t("health_support_preview"), expanded=False):
             st.json(bundle_summary)
+        if downloaded:
+            db.log_scan_event("SYSTEM", "INFO", "health_support_bundle_downloaded", {"file_name": bundle_name, **bundle_summary})
 
     a1, a2 = st.columns(2)
     with a1:
@@ -1808,8 +1857,10 @@ def _render_system_health(db_path: Path) -> None:
         if st.button(t("health_clear_stale_pid"), width="stretch"):
             if stale_pid:
                 _clear_pid_info()
+                db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": True})
                 st.success("Cleared stale PID file")
             else:
+                db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": False})
                 st.info("No stale PID to clear")
     with h2:
         if st.button(t("health_run_sync_now"), width="stretch"):
@@ -1819,9 +1870,11 @@ def _render_system_health(db_path: Path) -> None:
                 if err:
                     status.write(err)
                 status.update(label=f"Done (code={code})", state="complete")
+                db.log_scan_event("SYSTEM", "INFO" if code == 0 else "ERROR", "health_run_sync_now", {"code": code, "stdout": out, "stderr": err})
     with h3:
         if st.button(t("health_restart_all"), width="stretch"):
             ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
+            db.log_scan_event("SYSTEM", "INFO" if ok else "ERROR", "health_restart_all", {"message": msg})
             (st.success if ok else st.warning)(msg)
 
     st.markdown(f"### {t('health_ports')}")
