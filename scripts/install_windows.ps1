@@ -1,6 +1,6 @@
-param(
+﻿param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
-    [string]$PythonLauncher = "py",
+    [string]$PythonLauncher = "",
     [switch]$InstallDashboardTask = $true
 )
 
@@ -8,6 +8,51 @@ $ErrorActionPreference = "Stop"
 
 function Write-Step([string]$msg) {
     Write-Host "[PyTrade Installer] $msg" -ForegroundColor Cyan
+}
+
+function Resolve-PythonCommand([string]$PreferredLauncher) {
+    $candidates = @()
+    if ($PreferredLauncher) { $candidates += $PreferredLauncher }
+    $candidates += @("py", "python")
+
+    foreach ($cmd in $candidates) {
+        if (-not [string]::IsNullOrWhiteSpace($cmd)) {
+            $resolved = Get-Command $cmd -ErrorAction SilentlyContinue
+            if ($resolved) { return $resolved.Source }
+        }
+    }
+
+    $knownPython = @(
+        "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+        "$env:ProgramFiles\Python311\python.exe",
+        "$env:ProgramFiles\Python312\python.exe"
+    )
+    foreach ($path in $knownPython) {
+        if (Test-Path $path) { return $path }
+    }
+
+    return $null
+}
+
+function Install-PythonIfMissing {
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        throw "Python was not found and winget is unavailable. Please install Python 3.11+ manually."
+    }
+
+    Write-Step "Python not found. Installing Python 3.11 via winget..."
+    & $winget.Source install --id Python.Python.3.11 -e --source winget --accept-package-agreements --accept-source-agreements --silent
+    if ($LASTEXITCODE -ne 0) {
+        throw "winget failed to install Python 3.11."
+    }
+
+    Start-Sleep -Seconds 5
+    $resolved = Resolve-PythonCommand ""
+    if (-not $resolved) {
+        throw "Python installation completed but python executable was not found."
+    }
+    return $resolved
 }
 
 $project = Resolve-Path $ProjectRoot
@@ -22,13 +67,14 @@ $dashboardRunner = Join-Path $PSScriptRoot "run_dashboard.ps1"
 
 Write-Step "Project root: $project"
 
-if (-not (Get-Command $PythonLauncher -ErrorAction SilentlyContinue)) {
-    throw "Python launcher '$PythonLauncher' not found."
+$pythonCmd = Resolve-PythonCommand $PythonLauncher
+if (-not $pythonCmd) {
+    $pythonCmd = Install-PythonIfMissing
 }
 
 if (-not (Test-Path $venvPython)) {
     Write-Step "Creating virtual environment..."
-    & $PythonLauncher -m venv $venvDir
+    & $pythonCmd -m venv $venvDir
 }
 
 Write-Step "Installing dependencies..."
@@ -75,6 +121,7 @@ if ($InstallDashboardTask) {
 
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
+Write-Host "Python         : $pythonCmd"
 Write-Host "Daemon task    : PyTradeDaemon"
 if ($InstallDashboardTask) {
     Write-Host "Dashboard task : PyTradeDashboard"

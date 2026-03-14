@@ -119,15 +119,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\one_click_installer.ps1
 1. ติดตั้ง Inno Setup 6
 2. เปิดไฟล์ `installer\PyTradeSetup.iss`
 3. กด Compile
-4. ได้ไฟล์ติดตั้งที่ `installer\output\PyTradeSetup.exe`
+4. ได้ไฟล์ติดตั้งที่ `installer\\output\\PyTradeSetup-<timestamp>.exe`
 
 ตัวติดตั้งจะ:
 - คัดลอกไฟล์ระบบ
 - ติดตั้งลงโฟลเดอร์เริ่มต้น `C:\pytrade`
+- ถ้าเครื่องยังไม่มี Python จะพยายามติดตั้ง `Python 3.11` ผ่าน `winget` อัตโนมัติ
+- สร้าง `.venv` และติดตั้ง dependencies จาก `requirements.txt`
 - ถามค่า MT5 + preset + symbols + Telegram
 - มีหน้าปรับละเอียดเพิ่ม: Risk, Thresholds, Smart Exit
 - ตรวจสอบความถูกต้องของค่าก่อนกด Next (ช่วงตัวเลข, true/false, ลำดับ thresholds)
 - รัน post-install อัตโนมัติ (config `.env`, ติดตั้ง task, เริ่มระบบ)
+
+สิ่งที่ยังต้องมี/ทำเอง:
+- ติดตั้ง MetaTrader 5 และล็อกอินบัญชีให้เรียบร้อย
+- เครื่องต้องมีอินเทอร์เน็ตตอนติดตั้งแพ็กเกจ Python
+- ถ้าไม่มี `winget` ให้ติดตั้ง Python 3.11+ เองก่อน
 
 รองรับภาษา:
 - English
@@ -234,6 +241,7 @@ ULTRA_STACK_EXTRA_SLOTS=2
 ## คู่มือแยก (ภาษาไทย)
 - คู่มือติดตั้ง: `docs/INSTALL_WINDOWS_TH.md`
 - คู่มือการใช้งาน: `docs/USER_GUIDE_TH.md`
+
 
 
 

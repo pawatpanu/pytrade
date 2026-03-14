@@ -7,7 +7,8 @@ $ErrorActionPreference = "Stop"
 function Resolve-IsccPath {
     $candidates = @(
         "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-        "C:\Program Files\Inno Setup 6\ISCC.exe"
+        "C:\Program Files\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
     )
     foreach ($p in $candidates) {
         if (Test-Path $p) { return $p }
@@ -27,15 +28,18 @@ if (-not (Test-Path $issPath)) {
     throw "Installer script not found: $issPath"
 }
 
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outputName = "PyTradeSetup-$stamp"
+
 Push-Location (Split-Path $issPath -Parent)
 try {
-    & $iscc $issPath
+    & $iscc "/DOutputName=$outputName" $issPath
 }
 finally {
     Pop-Location
 }
 
-$outPath = Join-Path $ProjectRoot "installer\output\PyTradeSetup.exe"
+$outPath = Join-Path $ProjectRoot ("installer\output\{0}.exe" -f $outputName)
 if (Test-Path $outPath) {
     Write-Host "Build success: $outPath" -ForegroundColor Green
 } else {
