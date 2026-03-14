@@ -57,6 +57,36 @@ py main.py --mode daemon
 py -m streamlit run streamlit_app.py
 ```
 
+หรือดับเบิลคลิกไฟล์ `.bat` ได้เลย:
+- `scripts\Run-Dashboard.bat` เปิด Dashboard
+- `scripts\Run-Daemon.bat` รัน Daemon ต่อเนื่อง
+- `scripts\Scan-Once.bat` สแกน 1 รอบ
+- `scripts\Sync-Orders.bat` ซิงก์สถานะออเดอร์
+- `scripts\Reset-Loss-Guard.bat` รีเซ็ต Daily Loss Guard
+- `scripts\Start-All.bat` เปิด Daemon + Dashboard พร้อมกัน
+- `scripts\Stop-All.bat` ส่งคำสั่งหยุด Python/Streamlit ที่ใช้กับระบบ
+
+มี launcher ซ้ำที่โฟลเดอร์หลัก `C:\pytrade` ด้วย เพื่อกดใช้งานได้เร็ว:
+- `Run-Dashboard.bat`
+- `Run-Daemon.bat`
+- `Start-All.bat`
+- `Stop-All.bat`
+- `Restart-All.bat`
+- `Open-Logs.bat`
+- `Status-Check.bat`
+- `Update-From-Git.bat`
+- `Scan-Once.bat`
+- `Sync-Orders.bat`
+- `Reset-Loss-Guard.bat`
+
+## ไฟล์ช่วยใช้งานเร็ว (.bat)
+- `Start-All.bat` เปิด Daemon และ Dashboard พร้อมกัน
+- `Stop-All.bat` ส่งคำสั่งหยุด Python/Streamlit ที่ใช้กับระบบ
+- `Restart-All.bat` หยุดแล้วเปิดระบบใหม่ทันที
+- `Open-Logs.bat` เปิดโฟลเดอร์ logs และไฟล์ log ล่าสุด
+- `Status-Check.bat` เช็ก venv, `.env`, pid, port, process แบบเร็ว
+- `Update-From-Git.bat` ดึงโค้ดล่าสุดจาก Git, ติดตั้ง dependencies, แล้วรีสตาร์ทระบบ
+
 ## ติดตั้งแบบรันถาวร (Auto Start)
 ใช้สคริปต์ใน `scripts/`:
 
@@ -204,3 +234,7 @@ ULTRA_STACK_EXTRA_SLOTS=2
 ## คู่มือแยก (ภาษาไทย)
 - คู่มือติดตั้ง: `docs/INSTALL_WINDOWS_TH.md`
 - คู่มือการใช้งาน: `docs/USER_GUIDE_TH.md`
+
+
+
+

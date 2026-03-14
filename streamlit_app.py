@@ -806,6 +806,34 @@ def _run_command(args: list[str], timeout: int = 180) -> tuple[int, str, str]:
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
 
+def _run_batch_file(path: Path, detached: bool = False) -> tuple[bool, str]:
+    if not path.exists():
+        return False, f"Launcher not found: {path}"
+
+    creationflags = 0
+    if detached:
+        creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+
+    try:
+        if detached:
+            subprocess.Popen(
+                ["cmd.exe", "/c", str(path)],
+                cwd=str(ROOT),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                creationflags=creationflags,
+                shell=False,
+            )
+            return True, f"Started launcher: {path.name}"
+
+        proc = subprocess.run(["cmd.exe", "/c", str(path)], cwd=str(ROOT), capture_output=True, text=True, timeout=300, shell=False)
+        msg = proc.stdout.strip() or proc.stderr.strip() or path.name
+        return proc.returncode == 0, msg
+    except Exception as exc:
+        return False, str(exc)
+
+
 def _project_python() -> str:
     venv_python = ROOT / ".venv" / "Scripts" / "python.exe"
     if venv_python.exists():
@@ -1062,7 +1090,7 @@ def _render_controls(db_path: Path) -> None:
             st.caption("Tip: install `streamlit-autorefresh` for smoother refresh without full page reload.")
             st.markdown(f"<meta http-equiv='refresh' content='{sec}'>", unsafe_allow_html=True)
 
-    if st.sidebar.button(t("scan_once"), use_container_width=True):
+    if st.sidebar.button(t("scan_once"), width="stretch"):
         with st.sidebar.status("...", expanded=True) as status:
             code, out, err = _run_command([_project_python(), "main.py", "--mode", "scan", "--once"], timeout=600)
             status.write(out or "(no stdout)")
@@ -1070,7 +1098,7 @@ def _render_controls(db_path: Path) -> None:
                 status.write(err)
             status.update(label=f"Done (code={code})", state="complete")
 
-    if st.sidebar.button(t("sync"), use_container_width=True):
+    if st.sidebar.button(t("sync"), width="stretch"):
         with st.sidebar.status("...", expanded=True) as status:
             code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
             status.write(out or "(no stdout)")
@@ -1080,13 +1108,38 @@ def _render_controls(db_path: Path) -> None:
 
     c1, c2 = st.sidebar.columns(2)
     with c1:
-        if st.button(t("start_daemon"), use_container_width=True):
+        if st.button(t("start_daemon"), width="stretch"):
             ok, msg = _start_daemon()
             (st.success if ok else st.warning)(msg)
     with c2:
-        if st.button(t("stop_daemon"), use_container_width=True):
+        if st.button(t("stop_daemon"), width="stretch"):
             ok, msg = _stop_daemon()
             (st.success if ok else st.warning)(msg)
+
+    st.sidebar.caption("Quick Launchers")
+    q1, q2 = st.sidebar.columns(2)
+    with q1:
+        if st.button("Start All", width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Start-All.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+    with q2:
+        if st.button("Stop All", width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Stop-All.bat")
+            (st.success if ok else st.warning)(msg)
+
+    q3, q4 = st.sidebar.columns(2)
+    with q3:
+        if st.button("Restart All", width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+    with q4:
+        if st.button("Open Logs", width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+
+    if st.sidebar.button("Status Check", width="stretch"):
+        ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
+        (st.success if ok else st.warning)(msg)
 
 
 def _render_dashboard(db_path: Path) -> None:
@@ -1140,15 +1193,15 @@ def _render_dashboard(db_path: Path) -> None:
     st.subheader(t("cleanup"))
     cc1, cc2, cc3 = st.columns(3)
     with cc1:
-        if st.button(t("del_below"), use_container_width=True):
+        if st.button(t("del_below"), width="stretch"):
             _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='below_min_execute_category'")
             st.success("OK")
     with cc2:
-        if st.button(t("del_cooldown"), use_container_width=True):
+        if st.button(t("del_cooldown"), width="stretch"):
             _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='cooldown_active'")
             st.success("OK")
     with cc3:
-        if st.button(t("reset_loss_guard"), use_container_width=True):
+        if st.button(t("reset_loss_guard"), width="stretch"):
             if db_path.exists():
                 db = SignalDB(str(db_path))
                 reset_at = db.reset_daily_loss_guard()
@@ -1173,7 +1226,7 @@ def _render_dashboard(db_path: Path) -> None:
         st.info(t("no_closed"))
     else:
         pnl_df["equity_curve"] = pnl_df["pnl"].cumsum()
-        st.line_chart(pnl_df[["id", "equity_curve"]].set_index("id"), use_container_width=True, height=220)
+        st.line_chart(pnl_df[["id", "equity_curve"]].set_index("id"), width="stretch", height=220)
 
     st.subheader(t("orders"))
     orders = _query_df(
@@ -1210,7 +1263,7 @@ def _render_dashboard(db_path: Path) -> None:
         if f_reason != all_label:
             view = view[view["reason"] == f_reason]
 
-        st.dataframe(view, use_container_width=True, height=320)
+        st.dataframe(view, width="stretch", height=320)
         st.download_button(t("download_orders"), data=view.to_csv(index=False), file_name="orders_filtered.csv", mime="text/csv")
 
     st.subheader(t("signals"))
@@ -1239,7 +1292,7 @@ def _render_dashboard(db_path: Path) -> None:
         if s_dir != all_label:
             sview = sview[sview["direction"] == s_dir]
 
-        st.dataframe(sview, use_container_width=True, height=320)
+        st.dataframe(sview, width="stretch", height=320)
         st.download_button(t("download_signals"), data=sview.to_csv(index=False), file_name="signals_filtered.csv", mime="text/csv")
 
     st.subheader(t("events"))
@@ -1251,7 +1304,7 @@ def _render_dashboard(db_path: Path) -> None:
     if events.empty:
         st.info(t("no_events"))
     else:
-        st.dataframe(events, use_container_width=True, height=260)
+        st.dataframe(events, width="stretch", height=260)
         st.download_button(t("download_events"), data=events.to_csv(index=False), file_name="events_recent.csv", mime="text/csv")
 
     st.subheader(t("manual_orders"))
@@ -1264,14 +1317,14 @@ def _render_dashboard(db_path: Path) -> None:
         st.info(t("manual_none_open"))
     else:
         open_cols = [c for c in ["ticket", "position_id", "timestamp_th", "timestamp", "symbol", "direction", "volume", "price_open", "price_now", "profit", "magic", "comment"] if c in open_manual.columns]
-        st.dataframe(open_manual[open_cols], use_container_width=True, height=220)
+        st.dataframe(open_manual[open_cols], width="stretch", height=220)
 
     st.caption(t("manual_closed_deals"))
     if closed_manual.empty:
         st.info(t("manual_none_closed"))
     else:
         close_cols = [c for c in ["deal", "position_id", "timestamp_th", "timestamp", "symbol", "direction", "volume", "price", "profit", "commission", "swap", "magic", "comment"] if c in closed_manual.columns]
-        st.dataframe(closed_manual[close_cols], use_container_width=True, height=260)
+        st.dataframe(closed_manual[close_cols], width="stretch", height=260)
 
 
 def _render_performance(db_path: Path) -> None:
@@ -1386,7 +1439,7 @@ def _render_performance(db_path: Path) -> None:
         curve = closed.sort_values("closed_at_utc_dt").copy()
         curve["cum_pnl"] = curve["pnl"].cumsum()
         st.caption(t("perf_pnl_curve"))
-        st.line_chart(curve[["closed_at_utc_dt", "cum_pnl"]].set_index("closed_at_utc_dt"), use_container_width=True, height=220)
+        st.line_chart(curve[["closed_at_utc_dt", "cum_pnl"]].set_index("closed_at_utc_dt"), width="stretch", height=220)
 
     show_cols = [
         "id",
@@ -1408,7 +1461,7 @@ def _render_performance(db_path: Path) -> None:
     ]
     show_cols = [c for c in show_cols if c in view.columns]
     out = view[show_cols].copy()
-    st.dataframe(out, use_container_width=True, height=360)
+    st.dataframe(out, width="stretch", height=360)
     st.download_button(t("perf_download"), data=out.to_csv(index=False), file_name="performance_filtered.csv", mime="text/csv")
 
 
@@ -1468,7 +1521,7 @@ def _render_portfolio() -> None:
         if not rows:
             st.info(t("no_positions"))
         else:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, height=340)
+            st.dataframe(pd.DataFrame(rows), width="stretch", height=340)
 
     except Exception as exc:
         st.error(str(exc))
@@ -1523,8 +1576,8 @@ def _render_config_editor() -> None:
             live_server = st.text_input(f"{t('account_server')} (LIVE)", value=env.get("MT5_SERVER_LIVE", ""))
 
         b1, b2 = st.columns(2)
-        save_profiles = b1.form_submit_button(t("save_account_profiles"), use_container_width=True)
-        apply_switch = b2.form_submit_button(t("apply_account_mode"), type="primary", use_container_width=True)
+        save_profiles = b1.form_submit_button(t("save_account_profiles"), width="stretch")
+        apply_switch = b2.form_submit_button(t("apply_account_mode"), type="primary", width="stretch")
 
         profile_updates = {
             "ACCOUNT_MODE": active_mode,
@@ -1604,7 +1657,7 @@ def _render_config_editor() -> None:
                 """
             )
     with st.expander("พจนานุกรมค่าตั้งค่า / Config glossary", expanded=False):
-        st.dataframe(_config_help_df(), use_container_width=True, height=320)
+        st.dataframe(_config_help_df(), width="stretch", height=320)
 
     preset_map = {
         "ultra_premium": {
@@ -1674,7 +1727,7 @@ def _render_config_editor() -> None:
     with p2:
         # Align button baseline with preset selectbox control.
         st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
-        if st.button(t("apply_preset"), use_container_width=True):
+        if st.button(t("apply_preset"), width="stretch"):
             _upsert_env_values(preset_map[preset])
             db.log_config_change(
                 source="streamlit_preset",
@@ -1813,7 +1866,7 @@ def _render_config_editor() -> None:
     st.markdown(f"### {t('task_manager')}")
     t1, t2 = st.columns(2)
     with t1:
-        if st.button(t("install_tasks"), use_container_width=True):
+        if st.button(t("install_tasks"), width="stretch"):
             code, out, err = _run_command(
                 ["powershell", "-ExecutionPolicy", "Bypass", "-File", str((ROOT / "scripts" / "install_windows.ps1"))],
                 timeout=600,
@@ -1824,7 +1877,7 @@ def _render_config_editor() -> None:
             else:
                 st.error(err or out or "install failed")
     with t2:
-        if st.button(t("uninstall_tasks"), use_container_width=True):
+        if st.button(t("uninstall_tasks"), width="stretch"):
             code, out, err = _run_command(
                 ["powershell", "-ExecutionPolicy", "Bypass", "-File", str((ROOT / "scripts" / "uninstall_windows.ps1"))],
                 timeout=300,
@@ -1839,10 +1892,10 @@ def _render_config_editor() -> None:
     with q1:
         exists, msg = _task_query(TASK_DAEMON)
         st.caption(f"{t('task_status')} {t('task_daemon')}: {'OK' if exists else 'N/A'}")
-        if st.button(f"{t('task_run')} {t('task_daemon')}", use_container_width=True):
+        if st.button(f"{t('task_run')} {t('task_daemon')}", width="stretch"):
             ok, info = _task_action(TASK_DAEMON, "run")
             (st.success if ok else st.warning)(info)
-        if st.button(f"{t('task_stop')} {t('task_daemon')}", use_container_width=True):
+        if st.button(f"{t('task_stop')} {t('task_daemon')}", width="stretch"):
             ok, info = _task_action(TASK_DAEMON, "stop")
             (st.success if ok else st.warning)(info)
         with st.expander(f"{t('task_status')} {t('task_daemon')} (raw)"):
@@ -1850,10 +1903,10 @@ def _render_config_editor() -> None:
     with q2:
         exists, msg = _task_query(TASK_DASHBOARD)
         st.caption(f"{t('task_status')} {t('task_dashboard')}: {'OK' if exists else 'N/A'}")
-        if st.button(f"{t('task_run')} {t('task_dashboard')}", use_container_width=True):
+        if st.button(f"{t('task_run')} {t('task_dashboard')}", width="stretch"):
             ok, info = _task_action(TASK_DASHBOARD, "run")
             (st.success if ok else st.warning)(info)
-        if st.button(f"{t('task_stop')} {t('task_dashboard')}", use_container_width=True):
+        if st.button(f"{t('task_stop')} {t('task_dashboard')}", width="stretch"):
             ok, info = _task_action(TASK_DASHBOARD, "stop")
             (st.success if ok else st.warning)(info)
         with st.expander(f"{t('task_status')} {t('task_dashboard')} (raw)"):
@@ -1865,7 +1918,7 @@ def _render_config_editor() -> None:
         st.info(t("no_audit"))
     else:
         audit_df = pd.DataFrame([dict(r) for r in audit_rows])
-        st.dataframe(audit_df, use_container_width=True, height=240)
+        st.dataframe(audit_df, width="stretch", height=240)
 
     st.markdown(f"### {t('raw_editor')}")
     text = ENV_PATH.read_text(encoding="utf-8")
@@ -2023,7 +2076,7 @@ def _render_deploy_wizard() -> None:
         data=pkg_bytes,
         file_name=pkg_name,
         mime="application/zip",
-        use_container_width=True,
+        width="stretch",
     )
 
     st.markdown(f"### {t('deploy_preview')}")
