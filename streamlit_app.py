@@ -191,6 +191,11 @@ TXT = {
         "health_ok_label": "OK",
         "health_warn_label": "WARN",
         "health_error_label": "ERROR",
+        "health_mt5_test": "ทดสอบ MT5",
+        "health_mt5_ok": "เชื่อม MT5 สำเร็จ",
+        "health_mt5_fail": "เชื่อม MT5 ไม่สำเร็จ",
+        "health_support_bundle": "ดาวน์โหลด Support Bundle",
+        "health_support_preview": "สรุปข้อมูลสำหรับตรวจปัญหา",
     },
     "en": {
         "title": "PyTrade Control Center",
@@ -355,6 +360,11 @@ TXT = {
         "health_ok_label": "OK",
         "health_warn_label": "WARN",
         "health_error_label": "ERROR",
+        "health_mt5_test": "Test MT5",
+        "health_mt5_ok": "MT5 connection successful",
+        "health_mt5_fail": "MT5 connection failed",
+        "health_support_bundle": "Download Support Bundle",
+        "health_support_preview": "Support diagnostics summary",
     },
 }
 
@@ -933,6 +943,93 @@ def _status_badge(label: str, level: str) -> str:
         f"<span style='display:inline-block;padding:4px 10px;border-radius:999px;"
         f"background:{bg};border:1px solid {color};color:{color};font-weight:600'>{label}</span>"
     )
+
+
+def _masked_env(env: dict[str, str]) -> dict[str, str]:
+    masked = dict(env)
+    secret_keys = {
+        "MT5_PASSWORD",
+        "MT5_PASSWORD_DEMO",
+        "MT5_PASSWORD_LIVE",
+        "TELEGRAM_TOKEN",
+        "LINE_TOKEN",
+    }
+    for key in list(masked.keys()):
+        if key in secret_keys:
+            masked[key] = "***MASKED***"
+    return masked
+
+
+def _test_mt5_connection(env: dict[str, str]) -> tuple[bool, dict[str, object]]:
+    try:
+        import MetaTrader5 as mt5
+    except Exception as exc:
+        return False, {"error": str(exc)}
+
+    kwargs = {}
+    if env.get("MT5_PATH"):
+        kwargs["path"] = env["MT5_PATH"]
+
+    if not mt5.initialize(**kwargs):
+        code, msg = mt5.last_error()
+        return False, {"error": f"{code} {msg}"}
+
+    try:
+        login = env.get("MT5_LOGIN")
+        password = env.get("MT5_PASSWORD")
+        server = env.get("MT5_SERVER")
+        if login and password and server:
+            ok = mt5.login(login=int(login), password=password, server=server)
+            if not ok:
+                code, msg = mt5.last_error()
+                return False, {"error": f"{code} {msg}"}
+
+        account = mt5.account_info()
+        if not account:
+            return True, {"login": env.get("MT5_LOGIN", "-"), "server": env.get("MT5_SERVER", "-")}
+        return True, {
+            "login": int(getattr(account, "login", 0) or 0),
+            "server": env.get("MT5_SERVER", "-"),
+            "balance": float(getattr(account, "balance", 0.0) or 0.0),
+            "equity": float(getattr(account, "equity", 0.0) or 0.0),
+            "profit": float(getattr(account, "profit", 0.0) or 0.0),
+        }
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+
+def _build_support_bundle(env: dict[str, str], db_path: Path) -> tuple[bytes, str, dict[str, object]]:
+    masked_env = _masked_env(env)
+    pid_info = _read_pid_info() or {}
+    daemon_pid = int(pid_info.get("pid", 0) or 0)
+    summary = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "root": str(ROOT),
+        "db_path": str(db_path),
+        "db_exists": db_path.exists(),
+        "env_exists": ENV_PATH.exists(),
+        "venv_exists": (ROOT / ".venv" / "Scripts" / "python.exe").exists(),
+        "daemon_pid": daemon_pid,
+        "daemon_running": daemon_pid > 0 and _is_pid_running(daemon_pid),
+    }
+    ports_df = _port_snapshot([8501, 8502])
+    proc_df = _process_snapshot()
+
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("summary.json", json.dumps(summary, ensure_ascii=False, indent=2).encode("utf-8"))
+        zf.writestr("env_masked.json", json.dumps(masked_env, ensure_ascii=False, indent=2).encode("utf-8"))
+        zf.writestr("pid_info.json", json.dumps(pid_info, ensure_ascii=False, indent=2).encode("utf-8"))
+        zf.writestr("ports.csv", ports_df.to_csv(index=False).encode("utf-8"))
+        zf.writestr("processes.csv", proc_df.to_csv(index=False).encode("utf-8"))
+        zf.writestr("daemon_tail.log", _tail_text(ROOT / "logs" / "daemon.log", lines=50).encode("utf-8"))
+        zf.writestr("dashboard_tail.log", _tail_text(ROOT / "logs" / "dashboard.log", lines=50).encode("utf-8"))
+
+    file_name = f"pytrade_support_bundle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
+    return mem.getvalue(), file_name, summary
 
 
 def _project_python() -> str:
@@ -1673,6 +1770,27 @@ def _render_system_health(db_path: Path) -> None:
         f"MT5_SERVER={env.get('MT5_SERVER', '-') or '-'} | "
         f"DB_PATH={env.get('DB_PATH', 'signals.db')}"
     )
+
+    m1, m2 = st.columns(2)
+    with m1:
+        if st.button(t("health_mt5_test"), width="stretch"):
+            ok, payload = _test_mt5_connection(env)
+            if ok:
+                st.success(t("health_mt5_ok"))
+                st.json(payload)
+            else:
+                st.error(f"{t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
+    with m2:
+        bundle_bytes, bundle_name, bundle_summary = _build_support_bundle(env, db_path)
+        st.download_button(
+            t("health_support_bundle"),
+            data=bundle_bytes,
+            file_name=bundle_name,
+            mime="application/zip",
+            width="stretch",
+        )
+        with st.expander(t("health_support_preview"), expanded=False):
+            st.json(bundle_summary)
 
     a1, a2 = st.columns(2)
     with a1:
