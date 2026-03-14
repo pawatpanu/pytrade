@@ -33,6 +33,7 @@ TXT = {
         "tab_dashboard": "แดชบอร์ด",
         "tab_performance": "ผลงาน",
         "tab_portfolio": "สถานะพอร์ต",
+        "tab_health": "สุขภาพระบบ",
         "tab_config": "ตั้งค่า",
         "tab_guide": "คู่มือใช้งาน",
         "tab_deploy": "Deploy Wizard",
@@ -168,12 +169,28 @@ TXT = {
         "deploy_download": "ดาวน์โหลดแพ็ก deploy (.zip)",
         "deploy_preview": "ตัวอย่างค่าใน deploy_profile.env",
         "deploy_note": "นำ zip ไปเครื่องปลายทาง แตกไฟล์ แล้วรัน install_profile.ps1",
+        "health_title": "System Health",
+        "health_venv": "Python/Virtual Env",
+        "health_env": "ไฟล์ตั้งค่า",
+        "health_db": "ฐานข้อมูล",
+        "health_pid": "Daemon PID",
+        "health_ports": "พอร์ตที่ใช้งาน",
+        "health_process": "Process ที่เกี่ยวข้อง",
+        "health_logs": "ตัวอย่าง Log ล่าสุด",
+        "health_exists": "พร้อมใช้งาน",
+        "health_missing": "ไม่พบ",
+        "health_running": "กำลังทำงาน",
+        "health_not_running": "ไม่ทำงาน",
+        "health_open_logs": "เปิด Logs",
+        "health_status_check": "เปิด Status Check",
+        "health_tail_empty": "ยังไม่มี log",
     },
     "en": {
         "title": "PyTrade Control Center",
         "tab_dashboard": "Dashboard",
         "tab_performance": "Performance",
         "tab_portfolio": "Portfolio",
+        "tab_health": "System Health",
         "tab_config": "Config",
         "tab_guide": "Guide",
         "tab_deploy": "Deploy Wizard",
@@ -309,6 +326,21 @@ TXT = {
         "deploy_download": "Download deploy package (.zip)",
         "deploy_preview": "Preview deploy_profile.env",
         "deploy_note": "Copy zip to target machine, extract, then run install_profile.ps1",
+        "health_title": "System Health",
+        "health_venv": "Python/Virtual Env",
+        "health_env": "Config File",
+        "health_db": "Database",
+        "health_pid": "Daemon PID",
+        "health_ports": "Open Ports",
+        "health_process": "Relevant Processes",
+        "health_logs": "Recent Log Samples",
+        "health_exists": "Available",
+        "health_missing": "Missing",
+        "health_running": "Running",
+        "health_not_running": "Not running",
+        "health_open_logs": "Open Logs",
+        "health_status_check": "Open Status Check",
+        "health_tail_empty": "No log content yet",
     },
 }
 
@@ -832,6 +864,42 @@ def _run_batch_file(path: Path, detached: bool = False) -> tuple[bool, str]:
         return proc.returncode == 0, msg
     except Exception as exc:
         return False, str(exc)
+
+
+def _tail_text(path: Path, lines: int = 20) -> str:
+    if not path.exists():
+        return t("health_tail_empty")
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        tail = content[-max(1, lines) :]
+        return "\n".join(tail) if tail else t("health_tail_empty")
+    except Exception as exc:
+        return str(exc)
+
+
+def _port_snapshot(ports: list[int]) -> pd.DataFrame:
+    rows: list[dict[str, str]] = []
+    for port in ports:
+        code, out, err = _run_command(["netstat", "-ano"])
+        text = out if code == 0 else (err or "")
+        matches = [line.strip() for line in text.splitlines() if f":{port} " in line]
+        if matches:
+            for line in matches:
+                rows.append({"port": str(port), "status": t("health_running"), "details": line})
+        else:
+            rows.append({"port": str(port), "status": t("health_not_running"), "details": ""})
+    return pd.DataFrame(rows)
+
+
+def _process_snapshot() -> pd.DataFrame:
+    code, out, err = _run_command(["tasklist"])
+    text = out if code == 0 else (err or "")
+    keep = ("python.exe", "py.exe", "streamlit.exe", "terminal64.exe")
+    rows = []
+    for line in text.splitlines():
+        if any(k.lower() in line.lower() for k in keep):
+            rows.append({"process": line})
+    return pd.DataFrame(rows)
 
 
 def _project_python() -> str:
@@ -1533,6 +1601,56 @@ def _render_portfolio() -> None:
             pass
 
 
+def _render_system_health(db_path: Path) -> None:
+    st.subheader(t("health_title"))
+    env = _load_env_map()
+    venv_py = ROOT / ".venv" / "Scripts" / "python.exe"
+    pid_info = _read_pid_info() or {}
+    daemon_pid = int(pid_info.get("pid", 0) or 0)
+    daemon_running = daemon_pid > 0 and _is_pid_running(daemon_pid)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(t("health_venv"), t("health_exists") if venv_py.exists() else t("health_missing"))
+    c2.metric(t("health_env"), t("health_exists") if ENV_PATH.exists() else t("health_missing"))
+    c3.metric(t("health_db"), t("health_exists") if db_path.exists() else t("health_missing"))
+    c4.metric(t("health_pid"), str(daemon_pid) if daemon_pid else "-", delta=t("health_running") if daemon_running else t("health_not_running"))
+
+    st.caption(
+        f"MT5_LOGIN={env.get('MT5_LOGIN', '-') or '-'} | "
+        f"MT5_SERVER={env.get('MT5_SERVER', '-') or '-'} | "
+        f"DB_PATH={env.get('DB_PATH', 'signals.db')}"
+    )
+
+    a1, a2 = st.columns(2)
+    with a1:
+        if st.button(t("health_open_logs"), width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+    with a2:
+        if st.button(t("health_status_check"), width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+
+    st.markdown(f"### {t('health_ports')}")
+    st.dataframe(_port_snapshot([8501, 8502]), width="stretch", height=180)
+
+    st.markdown(f"### {t('health_process')}")
+    proc_df = _process_snapshot()
+    if proc_df.empty:
+        st.info(t("health_not_running"))
+    else:
+        st.dataframe(proc_df, width="stretch", height=220)
+
+    st.markdown(f"### {t('health_logs')}")
+    l1, l2 = st.columns(2)
+    with l1:
+        st.caption("daemon.log")
+        st.code(_tail_text(ROOT / "logs" / "daemon.log", lines=20), language="log")
+    with l2:
+        st.caption("dashboard.log")
+        st.code(_tail_text(ROOT / "logs" / "dashboard.log", lines=20), language="log")
+
+
 def _render_config_editor() -> None:
     st.subheader(t("env_editor"))
     if not ENV_PATH.exists():
@@ -2108,8 +2226,8 @@ def main() -> None:
     db_path = _load_env_db_path()
     _render_controls(db_path)
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-        [t("tab_dashboard"), t("tab_performance"), t("tab_portfolio"), t("tab_config"), t("tab_guide"), t("tab_deploy")]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+        [t("tab_dashboard"), t("tab_performance"), t("tab_portfolio"), t("tab_health"), t("tab_config"), t("tab_guide"), t("tab_deploy")]
     )
     with tab1:
         _render_dashboard(db_path)
@@ -2118,10 +2236,12 @@ def main() -> None:
     with tab3:
         _render_portfolio()
     with tab4:
-        _render_config_editor()
+        _render_system_health(db_path)
     with tab5:
-        _render_guide()
+        _render_config_editor()
     with tab6:
+        _render_guide()
+    with tab7:
         _render_deploy_wizard()
 
 
