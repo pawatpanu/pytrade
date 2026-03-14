@@ -107,6 +107,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\one_click_installer.ps1
 หรือดับเบิลคลิก:
 `scripts\OneClick-Setup.bat`
 
+
+## Release Package
+สร้างไฟล์ปล่อยใช้งานพร้อมส่งต่อได้ด้วย:
+- `scripts\package_release.ps1`
+
+คำสั่ง:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package_release.ps1
+```
+
+ผลลัพธ์จะถูกสร้างใน `installer\output` เช่น:
+- `PyTradeSetup-<timestamp>.exe`
+- `RELEASE-NOTES-<timestamp>.md`
+- `PyTrade-Release-<timestamp>.zip`
 ## GUI Installer (Next > Next > Finish)
 มีสคริปต์ Inno Setup:
 - `installer\PyTradeSetup.iss`
@@ -241,6 +255,8 @@ ULTRA_STACK_EXTRA_SLOTS=2
 ## คู่มือแยก (ภาษาไทย)
 - คู่มือติดตั้ง: `docs/INSTALL_WINDOWS_TH.md`
 - คู่มือการใช้งาน: `docs/USER_GUIDE_TH.md`
+
+
 
 
 
