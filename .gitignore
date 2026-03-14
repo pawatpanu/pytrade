@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 signals.db
+signals_*.db
 .env
 .runtime/
 .pytest_cache/

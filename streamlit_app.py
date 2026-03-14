@@ -645,6 +645,12 @@ def _sanitize_name(value: str, fallback: str = "machine") -> str:
     return cleaned or fallback
 
 
+def _account_db_path(mode: str, login: str) -> str:
+    safe_mode = _sanitize_name(mode or "account", "account")
+    safe_login = _sanitize_name(login or "default", "default")
+    return f"signals_{safe_mode}_{safe_login}.db"
+
+
 def _build_deploy_profile_lines(env: dict[str, str], include_sensitive: bool) -> list[str]:
     keys = list(DEPLOY_BASE_KEYS)
     if include_sensitive:
@@ -800,6 +806,13 @@ def _run_command(args: list[str], timeout: int = 180) -> tuple[int, str, str]:
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
 
+def _project_python() -> str:
+    venv_python = ROOT / ".venv" / "Scripts" / "python.exe"
+    if venv_python.exists():
+        return str(venv_python)
+    return "py"
+
+
 def _task_query(task_name: str) -> tuple[bool, str]:
     code, out, err = _run_command(["schtasks", "/Query", "/TN", task_name, "/FO", "LIST", "/V"], timeout=30)
     if code != 0:
@@ -832,13 +845,14 @@ def _read_pid_info() -> dict | None:
 
 
 def _write_pid_info(pid: int) -> None:
+    py_exec = _project_python()
     PID_DIR.mkdir(parents=True, exist_ok=True)
     PID_FILE.write_text(
         json.dumps(
             {
                 "pid": pid,
                 "started_at": datetime.now(timezone.utc).isoformat(),
-                "cmd": "py main.py --mode daemon",
+                "cmd": f"\"{py_exec}\" main.py --mode daemon",
             },
             ensure_ascii=True,
             indent=2,
@@ -858,8 +872,9 @@ def _start_daemon() -> tuple[bool, str]:
         return False, f"Daemon already running (PID={info['pid']})"
 
     creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+    py_exec = _project_python()
     proc = subprocess.Popen(
-        ["py", "main.py", "--mode", "daemon"],
+        [py_exec, "main.py", "--mode", "daemon"],
         cwd=str(ROOT),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -1049,7 +1064,7 @@ def _render_controls(db_path: Path) -> None:
 
     if st.sidebar.button(t("scan_once"), use_container_width=True):
         with st.sidebar.status("...", expanded=True) as status:
-            code, out, err = _run_command(["py", "main.py", "--mode", "scan", "--once"], timeout=600)
+            code, out, err = _run_command([_project_python(), "main.py", "--mode", "scan", "--once"], timeout=600)
             status.write(out or "(no stdout)")
             if err:
                 status.write(err)
@@ -1057,7 +1072,7 @@ def _render_controls(db_path: Path) -> None:
 
     if st.sidebar.button(t("sync"), use_container_width=True):
         with st.sidebar.status("...", expanded=True) as status:
-            code, out, err = _run_command(["py", "main.py", "--mode", "sync"], timeout=300)
+            code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
             status.write(out or "(no stdout)")
             if err:
                 status.write(err)
@@ -1519,6 +1534,8 @@ def _render_config_editor() -> None:
             "MT5_LOGIN_LIVE": live_login.strip(),
             "MT5_PASSWORD_LIVE": live_password.strip(),
             "MT5_SERVER_LIVE": live_server.strip(),
+            "DB_PATH_DEMO": _account_db_path("demo", demo_login.strip()),
+            "DB_PATH_LIVE": _account_db_path("live", live_login.strip()),
         }
 
         if save_profiles:
@@ -1544,6 +1561,7 @@ def _render_config_editor() -> None:
                         "MT5_PASSWORD": password_v,
                         "MT5_SERVER": server_v,
                         "EXECUTION_MODE": "demo" if active_mode == "demo" else "live",
+                        "DB_PATH": _account_db_path(active_mode, login_v),
                     }
                 )
                 _upsert_env_values(apply_updates)
