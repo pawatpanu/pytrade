@@ -184,6 +184,13 @@ TXT = {
         "health_open_logs": "เปิด Logs",
         "health_status_check": "เปิด Status Check",
         "health_tail_empty": "ยังไม่มี log",
+        "health_self_heal": "Self-Heal / แก้ปัญหาเบื้องต้น",
+        "health_clear_stale_pid": "ล้าง stale PID",
+        "health_run_sync_now": "ซิงก์ทันที",
+        "health_restart_all": "รีสตาร์ททั้งระบบ",
+        "health_ok_label": "OK",
+        "health_warn_label": "WARN",
+        "health_error_label": "ERROR",
     },
     "en": {
         "title": "PyTrade Control Center",
@@ -341,6 +348,13 @@ TXT = {
         "health_open_logs": "Open Logs",
         "health_status_check": "Open Status Check",
         "health_tail_empty": "No log content yet",
+        "health_self_heal": "Self-Heal",
+        "health_clear_stale_pid": "Clear stale PID",
+        "health_run_sync_now": "Run Sync Now",
+        "health_restart_all": "Restart All",
+        "health_ok_label": "OK",
+        "health_warn_label": "WARN",
+        "health_error_label": "ERROR",
     },
 }
 
@@ -900,6 +914,25 @@ def _process_snapshot() -> pd.DataFrame:
         if any(k.lower() in line.lower() for k in keep):
             rows.append({"process": line})
     return pd.DataFrame(rows)
+
+
+def _status_badge(label: str, level: str) -> str:
+    color_map = {
+        "ok": "#16a34a",
+        "warn": "#ca8a04",
+        "error": "#dc2626",
+    }
+    bg_map = {
+        "ok": "rgba(22,163,74,0.12)",
+        "warn": "rgba(202,138,4,0.12)",
+        "error": "rgba(220,38,38,0.12)",
+    }
+    color = color_map.get(level, "#94a3b8")
+    bg = bg_map.get(level, "rgba(148,163,184,0.12)")
+    return (
+        f"<span style='display:inline-block;padding:4px 10px;border-radius:999px;"
+        f"background:{bg};border:1px solid {color};color:{color};font-weight:600'>{label}</span>"
+    )
 
 
 def _project_python() -> str:
@@ -1608,12 +1641,32 @@ def _render_system_health(db_path: Path) -> None:
     pid_info = _read_pid_info() or {}
     daemon_pid = int(pid_info.get("pid", 0) or 0)
     daemon_running = daemon_pid > 0 and _is_pid_running(daemon_pid)
+    stale_pid = PID_FILE.exists() and not daemon_running
+    db_exists = db_path.exists()
+    env_exists = ENV_PATH.exists()
+    venv_exists = venv_py.exists()
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric(t("health_venv"), t("health_exists") if venv_py.exists() else t("health_missing"))
-    c2.metric(t("health_env"), t("health_exists") if ENV_PATH.exists() else t("health_missing"))
-    c3.metric(t("health_db"), t("health_exists") if db_path.exists() else t("health_missing"))
+    c1.metric(t("health_venv"), t("health_exists") if venv_exists else t("health_missing"))
+    c2.metric(t("health_env"), t("health_exists") if env_exists else t("health_missing"))
+    c3.metric(t("health_db"), t("health_exists") if db_exists else t("health_missing"))
     c4.metric(t("health_pid"), str(daemon_pid) if daemon_pid else "-", delta=t("health_running") if daemon_running else t("health_not_running"))
+
+    b1, b2, b3, b4 = st.columns(4)
+    with b1:
+        st.markdown(_status_badge(t("health_ok_label") if venv_exists else t("health_error_label"), "ok" if venv_exists else "error"), unsafe_allow_html=True)
+        st.caption(t("health_venv"))
+    with b2:
+        st.markdown(_status_badge(t("health_ok_label") if env_exists else t("health_error_label"), "ok" if env_exists else "error"), unsafe_allow_html=True)
+        st.caption(t("health_env"))
+    with b3:
+        st.markdown(_status_badge(t("health_ok_label") if db_exists else t("health_warn_label"), "ok" if db_exists else "warn"), unsafe_allow_html=True)
+        st.caption(t("health_db"))
+    with b4:
+        daemon_level = "ok" if daemon_running else ("warn" if stale_pid else "error")
+        daemon_label = t("health_ok_label") if daemon_running else (t("health_warn_label") if stale_pid else t("health_error_label"))
+        st.markdown(_status_badge(daemon_label, daemon_level), unsafe_allow_html=True)
+        st.caption(t("health_pid"))
 
     st.caption(
         f"MT5_LOGIN={env.get('MT5_LOGIN', '-') or '-'} | "
@@ -1629,6 +1682,28 @@ def _render_system_health(db_path: Path) -> None:
     with a2:
         if st.button(t("health_status_check"), width="stretch"):
             ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+
+    st.markdown(f"### {t('health_self_heal')}")
+    h1, h2, h3 = st.columns(3)
+    with h1:
+        if st.button(t("health_clear_stale_pid"), width="stretch"):
+            if stale_pid:
+                _clear_pid_info()
+                st.success("Cleared stale PID file")
+            else:
+                st.info("No stale PID to clear")
+    with h2:
+        if st.button(t("health_run_sync_now"), width="stretch"):
+            with st.status("...", expanded=True) as status:
+                code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
+                status.write(out or "(no stdout)")
+                if err:
+                    status.write(err)
+                status.update(label=f"Done (code={code})", state="complete")
+    with h3:
+        if st.button(t("health_restart_all"), width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
             (st.success if ok else st.warning)(msg)
 
     st.markdown(f"### {t('health_ports')}")
