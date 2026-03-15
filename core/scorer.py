@@ -48,14 +48,15 @@ def _score_ema(direction: str, row: dict[str, float]) -> float:
     return 4.0
 
 
-def _score_adx(adx: float) -> float:
-    if adx >= 30:
+def _score_adx(adx: float, profile: dict[str, Any]) -> float:
+    minimum = float(profile["adx_minimum"])
+    if adx >= minimum + 14:
         return 10.0
-    if adx >= 25:
+    if adx >= minimum + 10:
         return 8.0
-    if adx >= 20:
+    if adx >= minimum + 6:
         return 6.0
-    if adx >= 18:
+    if adx >= minimum + 2:
         return 4.0
     return 0.0
 
@@ -75,7 +76,7 @@ def _score_structure(direction: str, structure: str) -> float:
     return 0.0
 
 
-def _score_setup_quality(direction: str, row: dict[str, float], prev_row: dict[str, float]) -> float:
+def _score_setup_quality(direction: str, row: dict[str, float], prev_row: dict[str, float], profile: dict[str, Any]) -> float:
     close = row["close"]
     open_ = row["open"]
     low = row["low"]
@@ -83,8 +84,9 @@ def _score_setup_quality(direction: str, row: dict[str, float], prev_row: dict[s
     ema20 = row["ema20"]
     ema50 = row["ema50"]
     atr = max(row["atr14"], 1e-8)
+    pullback_atr = float(profile["setup_pullback_atr"])
 
-    near_pullback_zone = min(abs(close - ema20), abs(close - ema50)) <= 0.8 * atr
+    near_pullback_zone = min(abs(close - ema20), abs(close - ema50)) <= pullback_atr * atr
 
     if direction == "BUY":
         bounced = close > open_ and low <= ema20 and close > prev_row["close"]
@@ -102,28 +104,32 @@ def _score_setup_quality(direction: str, row: dict[str, float], prev_row: dict[s
     return 2.0
 
 
-def _score_rsi(direction: str, rsi: float, prev_rsi: float, cfg: Config) -> float:
+def _score_rsi(direction: str, rsi: float, prev_rsi: float, profile: dict[str, Any], cfg: Config) -> float:
     rising = rsi > prev_rsi
     falling = rsi < prev_rsi
+    buy_low = float(profile.get("rsi_buy_low", cfg.rsi_buy_low))
+    buy_high = float(profile.get("rsi_buy_high", cfg.rsi_buy_high))
+    sell_low = float(profile.get("rsi_sell_low", cfg.rsi_sell_low))
+    sell_high = float(profile.get("rsi_sell_high", cfg.rsi_sell_high))
 
     if direction == "BUY":
-        if cfg.rsi_buy_low <= rsi <= cfg.rsi_buy_high and rising:
+        if buy_low <= rsi <= buy_high and rising:
             return 8.0
-        if rsi < 35 and rising:
+        if rsi < buy_low - 10 and rising:
             return 8.0
-        if rsi > 75:
+        if rsi > buy_high + 10:
             return 1.0
-        if 60 < rsi <= 70:
+        if buy_high < rsi <= buy_high + 8:
             return 4.0
         return 3.0
 
-    if cfg.rsi_sell_low <= rsi <= cfg.rsi_sell_high and falling:
+    if sell_low <= rsi <= sell_high and falling:
         return 8.0
-    if rsi > 65 and falling:
+    if rsi > sell_high + 10 and falling:
         return 8.0
-    if rsi < 25:
+    if rsi < max(10.0, sell_low - 15):
         return 1.0
-    if 30 <= rsi < 40:
+    if max(10.0, sell_low - 10) <= rsi < sell_low:
         return 4.0
     return 3.0
 
@@ -146,28 +152,34 @@ def _score_macd(direction: str, row: dict[str, float], prev_row: dict[str, float
     return 1.0
 
 
-def _score_stoch(direction: str, row: dict[str, float], prev_row: dict[str, float]) -> float:
+def _score_stoch(direction: str, row: dict[str, float], prev_row: dict[str, float], profile: dict[str, Any]) -> float:
     cross_up = prev_row["stoch_k"] <= prev_row["stoch_d"] and row["stoch_k"] > row["stoch_d"]
     cross_down = prev_row["stoch_k"] >= prev_row["stoch_d"] and row["stoch_k"] < row["stoch_d"]
+    stoch_buy_max = float(profile["stoch_buy_max"])
+    stoch_sell_min = float(profile["stoch_sell_min"])
 
     if direction == "BUY":
-        if cross_up and row["stoch_k"] < 30:
+        if cross_up and row["stoch_k"] < stoch_buy_max:
             return 5.0
         if cross_up:
             return 3.0
         return 0.0
 
-    if cross_down and row["stoch_k"] > 70:
+    if cross_down and row["stoch_k"] > stoch_sell_min:
         return 5.0
     if cross_down:
         return 3.0
     return 0.0
 
 
-def _score_volume(row: dict[str, float]) -> float:
-    if row["volume"] >= 1.2 * row["volume_sma20"]:
+def _score_volume(row: dict[str, float], profile: dict[str, Any]) -> float:
+    volume = float(row["volume"])
+    baseline = max(float(row["volume_sma20"]), 1e-8)
+    ratio = volume / baseline
+    spike_ratio = float(profile["volume_spike_ratio"])
+    if ratio >= spike_ratio:
         return 5.0
-    if row["volume"] >= row["volume_sma20"]:
+    if ratio >= max(1.0, spike_ratio - 0.15):
         return 3.0
     return 1.0
 
@@ -196,12 +208,16 @@ def _score_bollinger(direction: str, row: dict[str, float]) -> float:
     return 2.0
 
 
-def _score_atr(row: dict[str, float], atr_baseline: float) -> float:
+def _score_atr(row: dict[str, float], atr_baseline: float, profile: dict[str, Any]) -> float:
     atr = max(row["atr14"], 1e-8)
     ratio = atr / max(atr_baseline, 1e-8)
-    if 0.7 <= ratio <= 1.8:
+    pref_low = float(profile["atr_ratio_pref_low"])
+    pref_high = float(profile["atr_ratio_pref_high"])
+    ok_low = float(profile["atr_ratio_ok_low"])
+    ok_high = float(profile["atr_ratio_ok_high"])
+    if pref_low <= ratio <= pref_high:
         return 5.0
-    if 0.5 <= ratio <= 2.2:
+    if ok_low <= ratio <= ok_high:
         return 3.0
     return 1.0
 
@@ -218,28 +234,29 @@ def calculate_confidence(signal_context: dict[str, Any], config: Config) -> tupl
     structure = signal_context["structure"]
     adx_value = signal_context["adx_value"]
     atr_baseline = signal_context["atr_baseline"]
+    symbol = str(signal_context.get("symbol", ""))
+    asset_profile = signal_context.get("asset_profile") or config.asset_profile_for_symbol(symbol)
 
     scores = {
         "higher_tf": _score_higher_tf(direction, h4_trend, h1_trend),
         "ema_alignment": _score_ema(direction, m15),
-        "adx_strength": _score_adx(adx_value),
+        "adx_strength": _score_adx(adx_value, asset_profile),
         "market_structure": _score_structure(direction, structure),
-        "setup_quality": _score_setup_quality(direction, m15, m15_prev),
-        "rsi_context": _score_rsi(direction, m15["rsi14"], m15_prev["rsi14"], config),
+        "setup_quality": _score_setup_quality(direction, m15, m15_prev, asset_profile),
+        "rsi_context": _score_rsi(direction, m15["rsi14"], m15_prev["rsi14"], asset_profile, config),
         "macd_confirmation": _score_macd(direction, m15, m15_prev),
-        "stoch_trigger": _score_stoch(direction, m5, m5_prev),
-        "volume_confirmation": _score_volume(m5),
+        "stoch_trigger": _score_stoch(direction, m5, m5_prev, asset_profile),
+        "volume_confirmation": _score_volume(m5, asset_profile),
         "bollinger_context": _score_bollinger(direction, m15),
-        "atr_suitability": _score_atr(m15, atr_baseline),
+        "atr_suitability": _score_atr(m15, atr_baseline, asset_profile),
     }
 
     total = 0.0
-    reasons: list[str] = []
+    reasons: list[str] = [f"asset_profile={asset_profile.get('asset_profile', 'default')}"]
     for key, raw_score in scores.items():
         max_weight = float(config.weights.get(key, 0))
         if max_weight <= 0:
             continue
-        # Raw scorers already aligned with requested max points; clamp for safety.
         clamped = max(0.0, min(raw_score, max_weight))
         scores[key] = round(clamped, 2)
         total += clamped

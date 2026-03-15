@@ -4,8 +4,9 @@ from config import Config
 from core.scorer import calculate_confidence
 
 
-def _build_context(direction: str = "BUY") -> dict:
+def _build_context(direction: str = "BUY", symbol: str = "BTCUSDm") -> dict:
     return {
+        "symbol": symbol,
         "direction": direction,
         "h4_trend": "bullish" if direction == "BUY" else "bearish",
         "h1_trend": "bullish" if direction == "BUY" else "bearish",
@@ -68,6 +69,7 @@ def test_confidence_score_is_in_range() -> None:
     assert 0 <= score <= 100
     assert len(components) == 11
     assert reasons
+    assert reasons[0].startswith("asset_profile=")
 
 
 def test_confidence_score_degrades_with_conflict() -> None:
@@ -81,3 +83,27 @@ def test_confidence_score_degrades_with_conflict() -> None:
     bad_score, _, _ = calculate_confidence(bad_context, cfg)
 
     assert bad_score < good_score
+
+
+def test_asset_profile_detection() -> None:
+    cfg = Config()
+    assert cfg.asset_profile_name("BTCUSDm") == "crypto_major"
+    assert cfg.asset_profile_name("XAUUSDm") == "metal"
+    assert cfg.asset_profile_name("EURUSDm") == "fx_major"
+
+
+def test_asset_profile_changes_scoring_behavior() -> None:
+    cfg = Config()
+    crypto_context = _build_context("BUY", symbol="BTCUSDm")
+    fx_context = _build_context("BUY", symbol="EURUSDm")
+    crypto_context["m5"]["volume"] = 112.0
+    crypto_context["m5"]["volume_sma20"] = 100.0
+    fx_context["m5"]["volume"] = 112.0
+    fx_context["m5"]["volume_sma20"] = 100.0
+
+    _, crypto_components, crypto_reasons = calculate_confidence(crypto_context, cfg)
+    _, fx_components, fx_reasons = calculate_confidence(fx_context, cfg)
+
+    assert crypto_components["volume_confirmation"] < fx_components["volume_confirmation"]
+    assert crypto_reasons[0] == "asset_profile=crypto_major"
+    assert fx_reasons[0] == "asset_profile=fx_major"

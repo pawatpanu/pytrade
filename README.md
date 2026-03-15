@@ -115,16 +115,34 @@ powershell -ExecutionPolicy Bypass -File .\scripts\one_click_installer.ps1
 ## Release Package
 สร้างไฟล์ปล่อยใช้งานพร้อมส่งต่อได้ด้วย:
 - `scripts\package_release.ps1`
+- `scripts\Build-Release.bat`
+- `Build-Release.bat`
 
 คำสั่ง:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\package_release.ps1
 ```
 
+หรือกดครั้งเดียวแบบ launcher:
+- `Build-Release.bat`
+: build installer + package release ให้เสร็จในรอบเดียว
+
 ผลลัพธ์จะถูกสร้างใน `installer\output` เช่น:
 - `PyTradeSetup-<timestamp>.exe`
 - `RELEASE-NOTES-<timestamp>.md`
 - `PyTrade-Release-<timestamp>.zip`
+ใน release zip จะมีเพิ่ม:
+- `release_manifest.json`
+- `Install-This-Version.bat`
+- `Select-Version.bat`
+- `Release-Manager.ps1`
+
+การใช้งานบนเครื่องปลายทาง:
+- ติดตั้งเวอร์ชันนี้ทันที: แตก zip แล้วดับเบิลคลิก `Install-This-Version.bat`
+- อัปเดตเป็นเวอร์ชันใหม่: วางหลายไฟล์ `PyTrade-Release-*.zip` ไว้ในโฟลเดอร์เดียวกัน แล้วรัน `Select-Version.bat` เลือกเวอร์ชันใหม่
+- ย้อนกลับเวอร์ชันเก่า: รัน `Select-Version.bat` แล้วเลือกเวอร์ชันเก่ากว่า
+
+หมายเหตุ: ตัว installer จะคงไฟล์ `.env` และฐานข้อมูลเดิมไว้ จึงเหมาะกับการอัปเดต/ย้อนเวอร์ชันโดยไม่ทับข้อมูลใช้งาน
 ## GUI Installer (Next > Next > Finish)
 มีสคริปต์ Inno Setup:
 - `installer\PyTradeSetup.iss`
@@ -185,6 +203,14 @@ Task ที่สร้าง:
 - เลือกได้ว่าจะรวมข้อมูลลับ (MT5/Telegram) หรือไม่
 - ภายใน zip มี `deploy_profile.env`, `install_profile.ps1`, `README_DEPLOY.txt`
 - ฝั่งเครื่องปลายทางแตก zip แล้วรัน `install_profile.ps1` เพื่อ merge ค่าเข้า `.env` และติดตั้ง task อัตโนมัติ
+- มีบล็อก `Release Manager` สำหรับ
+  - ดูเวอร์ชันล่าสุดใน `installer\output`
+  - สั่ง `Build Installer`
+  - สั่ง `Package Release`
+  - สั่ง `Build All`
+  - เปิดโฟลเดอร์ output
+  - เปิดตัวเลือกเวอร์ชันด้วย `Select-Version.bat`
+  - ดาวน์โหลด `installer / release zip / release notes / manifest` ล่าสุดจากหน้าเว็บได้โดยตรง
 
 Preset:
 - `aggressive`

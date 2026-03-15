@@ -1,5 +1,7 @@
 ﻿#define MyAppName "PyTrade"
-#define MyAppVersion "1.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.0"
+#endif
 #define MyAppPublisher "PyTrade"
 #define MyAppExeName "scripts\\OneClick-Setup.bat"
 #define AssetsDir "..\\installer\\assets"

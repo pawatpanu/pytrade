@@ -69,12 +69,18 @@ def _stoch_cross(direction: str, df: pd.DataFrame) -> bool:
     return bool(cross or continuation)
 
 
-def _volume_spike(df: pd.DataFrame) -> bool:
+def _volume_spike(df: pd.DataFrame, volume_spike_ratio: float) -> bool:
     row = df.iloc[-2]
-    return bool(row["volume"] >= 1.2 * row["volume_sma20"])
+    return bool(row["volume"] >= volume_spike_ratio * row["volume_sma20"])
 
 
-def _hard_filters(direction: str, mtf_data: dict[str, pd.DataFrame], cfg: Config) -> tuple[bool, list[str], dict[str, str]]:
+def _hard_filters(
+    symbol: str,
+    direction: str,
+    mtf_data: dict[str, pd.DataFrame],
+    cfg: Config,
+) -> tuple[bool, list[str], dict[str, str], dict[str, Any]]:
+    asset_profile = cfg.asset_profile_for_symbol(symbol)
     h4 = mtf_data[cfg.timeframe_primary]
     h1 = mtf_data[cfg.timeframe_confirm]
     m15 = mtf_data[cfg.timeframe_setup]
@@ -95,12 +101,14 @@ def _hard_filters(direction: str, mtf_data: dict[str, pd.DataFrame], cfg: Config
     reasons: list[str] = []
     strict_mode = cfg.hard_filter_mode != "soft"
     adx_value = max(float(h1.iloc[-2]["adx14"]), float(m15.iloc[-2]["adx14"]))
-    if adx_value < cfg.adx_minimum:
-        reasons.append(f"ADX too low ({adx_value:.2f} < {cfg.adx_minimum})")
+    adx_minimum = float(asset_profile["adx_minimum"])
+    if adx_value < adx_minimum:
+        reasons.append(f"ADX too low ({adx_value:.2f} < {adx_minimum:.2f})")
 
     m15_row = m15.iloc[-2]
     entry_distance_atr = abs(float(m15_row["close"] - m15_row["ema20"])) / max(float(m15_row["atr14"]), 1e-8)
-    allowed_entry_zone = cfg.entry_zone_max_atr if strict_mode else cfg.entry_zone_max_atr * 1.5
+    base_entry_zone = float(asset_profile["entry_zone_max_atr"])
+    allowed_entry_zone = base_entry_zone if strict_mode else base_entry_zone * 1.5
     if entry_distance_atr > allowed_entry_zone:
         reasons.append(f"Price too far from entry zone ({entry_distance_atr:.2f} ATR)")
 
@@ -131,7 +139,7 @@ def _hard_filters(direction: str, mtf_data: dict[str, pd.DataFrame], cfg: Config
         if m15_trend == "bullish" and m5_trend == "bullish":
             reasons.append("Severe lower TF conflict")
 
-    return len(reasons) == 0, reasons, summary
+    return len(reasons) == 0, reasons, summary, asset_profile
 
 
 def _build_indicator_snapshot(m15: pd.DataFrame) -> dict[str, float]:
@@ -153,7 +161,7 @@ def _evaluate_direction(
     mtf_data: dict[str, pd.DataFrame],
     cfg: Config,
 ) -> SignalResult:
-    hard_ok, hard_reasons, tf_summary = _hard_filters(direction, mtf_data, cfg)
+    hard_ok, hard_reasons, tf_summary, asset_profile = _hard_filters(symbol, direction, mtf_data, cfg)
 
     m15 = mtf_data[cfg.timeframe_setup]
     m5 = mtf_data[cfg.timeframe_trigger]
@@ -173,7 +181,7 @@ def _evaluate_direction(
             price=price,
             timestamp=timestamp,
             timeframe_summary=tf_summary,
-            reason_summary="Hard filters failed",
+            reason_summary=f"Hard filters failed [{asset_profile['asset_profile']}]",
             indicator_snapshot=_build_indicator_snapshot(m15),
             hard_filters_passed=False,
             hard_filter_reasons=hard_reasons,
@@ -192,7 +200,9 @@ def _evaluate_direction(
     atr_baseline = float(m15["atr14"].tail(100).median()) if len(m15) >= 100 else float(m15["atr14"].median())
 
     context: dict[str, Any] = {
+        "symbol": symbol,
         "direction": direction,
+        "asset_profile": asset_profile,
         "h4_trend": detect_trend(h4),
         "h1_trend": detect_trend(h1),
         "m15": m15_row,
@@ -209,11 +219,15 @@ def _evaluate_direction(
         _momentum_candle(direction, m5),
         _macd_cross(direction, m5),
         _stoch_cross(direction, m5),
-        _volume_spike(m5),
+        _volume_spike(m5, float(asset_profile["volume_spike_ratio"])),
     ]
     trigger_count = sum(bool(x) for x in trigger_conditions)
 
-    min_triggers = max(1, min(4, cfg.m5_min_triggers))
+    min_triggers = max(1, min(4, int(asset_profile["m5_min_triggers"])))
+    risk_pct = float(cfg.risk_per_trade_pct) * float(asset_profile.get("risk_pct_multiplier", 1.0))
+    sl_atr_multiplier = float(asset_profile["sl_atr_multiplier"])
+    target_rr = float(asset_profile["target_rr"])
+
     if trigger_count < min_triggers:
         reasons.append(f"trigger={trigger_count}/4")
         trade_plan = build_trade_plan(
@@ -221,9 +235,9 @@ def _evaluate_direction(
             entry_price=price,
             atr=float(m15.iloc[-2]["atr14"]),
             account_balance=cfg.account_balance,
-            risk_per_trade_pct=cfg.risk_per_trade_pct,
-            sl_atr_multiplier=cfg.sl_atr_multiplier,
-            target_rr=cfg.target_rr,
+            risk_per_trade_pct=risk_pct,
+            sl_atr_multiplier=sl_atr_multiplier,
+            target_rr=target_rr,
         )
         return SignalResult(
             symbol=symbol,
@@ -259,9 +273,9 @@ def _evaluate_direction(
         entry_price=price,
         atr=float(m15.iloc[-2]["atr14"]),
         account_balance=cfg.account_balance,
-        risk_per_trade_pct=cfg.risk_per_trade_pct,
-        sl_atr_multiplier=cfg.sl_atr_multiplier,
-        target_rr=cfg.target_rr,
+        risk_per_trade_pct=risk_pct,
+        sl_atr_multiplier=sl_atr_multiplier,
+        target_rr=target_rr,
     )
 
     return SignalResult(

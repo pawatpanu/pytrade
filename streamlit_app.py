@@ -60,6 +60,7 @@ TXT = {
         "closed": "ปิดแล้ว",
         "failed": "ล้มเหลว",
         "today_pnl": "กำไร/ขาดทุน วันนี้",
+        "net_pnl_all": "กำไร/ขาดทุนสะสม",
         "cleanup": "ล้างข้อมูลรบกวน",
         "del_below": "ลบ skipped: below_min_execute_category",
         "del_cooldown": "ลบ skipped: cooldown_active",
@@ -173,6 +174,28 @@ TXT = {
         "deploy_download": "ดาวน์โหลดแพ็ก deploy (.zip)",
         "deploy_preview": "ตัวอย่างค่าใน deploy_profile.env",
         "deploy_note": "นำ zip ไปเครื่องปลายทาง แตกไฟล์ แล้วรัน install_profile.ps1",
+        "deploy_release_title": "Release Manager / แพ็กปล่อยใช้งาน",
+        "deploy_release_output": "โฟลเดอร์ output",
+        "deploy_release_latest": "เวอร์ชันล่าสุด",
+        "deploy_release_installer": "Installer ล่าสุด",
+        "deploy_release_notes": "Release Notes ล่าสุด",
+        "deploy_release_zip": "Release ZIP ล่าสุด",
+        "deploy_release_manifest": "Manifest ล่าสุด",
+        "deploy_release_none": "ยังไม่พบไฟล์ release ใน installer/output",
+        "deploy_release_build_installer": "Build Installer",
+        "deploy_release_package": "Package Release",
+        "deploy_release_build_all": "Build All",
+        "deploy_release_open_output": "เปิดโฟลเดอร์ Output",
+        "deploy_release_select_version": "เลือกเวอร์ชันเพื่อติดตั้ง/อัปเดต",
+        "deploy_release_refresh": "รีเฟรชข้อมูล release",
+        "deploy_release_built": "Build สำเร็จ",
+        "deploy_release_packaged": "Package สำเร็จ",
+        "deploy_release_failed": "คำสั่ง release ล้มเหลว",
+        "deploy_release_download_installer": "ดาวน์โหลด Installer ล่าสุด",
+        "deploy_release_download_zip": "ดาวน์โหลด Release ZIP ล่าสุด",
+        "deploy_release_download_notes": "ดาวน์โหลด Release Notes ล่าสุด",
+        "deploy_release_download_manifest": "ดาวน์โหลด Manifest ล่าสุด",
+        "deploy_release_manifest_preview": "ตัวอย่าง Manifest ล่าสุด",
         "health_title": "System Health",
         "health_venv": "Python/Virtual Env",
         "health_env": "ไฟล์ตั้งค่า",
@@ -243,6 +266,7 @@ TXT = {
         "closed": "Closed",
         "failed": "Failed",
         "today_pnl": "Today PnL",
+        "net_pnl_all": "Net PnL",
         "cleanup": "Cleanup",
         "del_below": "Delete skipped: below_min_execute_category",
         "del_cooldown": "Delete skipped: cooldown_active",
@@ -356,6 +380,28 @@ TXT = {
         "deploy_download": "Download deploy package (.zip)",
         "deploy_preview": "Preview deploy_profile.env",
         "deploy_note": "Copy zip to target machine, extract, then run install_profile.ps1",
+        "deploy_release_title": "Release Manager",
+        "deploy_release_output": "Output folder",
+        "deploy_release_latest": "Latest version",
+        "deploy_release_installer": "Latest installer",
+        "deploy_release_notes": "Latest release notes",
+        "deploy_release_zip": "Latest release zip",
+        "deploy_release_manifest": "Latest manifest",
+        "deploy_release_none": "No release artifacts found in installer/output",
+        "deploy_release_build_installer": "Build Installer",
+        "deploy_release_package": "Package Release",
+        "deploy_release_build_all": "Build All",
+        "deploy_release_open_output": "Open Output Folder",
+        "deploy_release_select_version": "Select version to install/update",
+        "deploy_release_refresh": "Refresh release info",
+        "deploy_release_built": "Build completed",
+        "deploy_release_packaged": "Packaging completed",
+        "deploy_release_failed": "Release command failed",
+        "deploy_release_download_installer": "Download latest installer",
+        "deploy_release_download_zip": "Download latest release zip",
+        "deploy_release_download_notes": "Download latest release notes",
+        "deploy_release_download_manifest": "Download latest manifest",
+        "deploy_release_manifest_preview": "Latest manifest preview",
         "health_title": "System Health",
         "health_venv": "Python/Virtual Env",
         "health_env": "Config File",
@@ -1110,6 +1156,56 @@ def _git_version_info() -> dict[str, str]:
     }
 
 
+def _release_output_dir() -> Path:
+    return ROOT / "installer" / "output"
+
+
+def _latest_release_artifacts() -> dict[str, object]:
+    output_dir = _release_output_dir()
+    result: dict[str, object] = {
+        "output_dir": output_dir,
+        "version": "-",
+        "installer": None,
+        "release_notes": None,
+        "release_zip": None,
+        "manifest": None,
+    }
+    if not output_dir.exists():
+        return result
+
+    installer = next(iter(sorted(output_dir.glob("PyTradeSetup-*.exe"), key=lambda p: p.stat().st_mtime, reverse=True)), None)
+    release_notes = next(iter(sorted(output_dir.glob("RELEASE-NOTES-*.md"), key=lambda p: p.stat().st_mtime, reverse=True)), None)
+    release_zip = next(iter(sorted(output_dir.glob("PyTrade-Release-*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)), None)
+
+    manifest_path = output_dir / "release_manifest.json"
+    if not manifest_path.exists() and release_zip:
+        manifest_name = release_zip.stem.replace("PyTrade-Release-", "")
+        candidate = output_dir / f"release_manifest_{manifest_name}.json"
+        if candidate.exists():
+            manifest_path = candidate
+
+    version = "-"
+    if installer:
+        version = installer.stem.replace("PyTradeSetup-", "")
+    elif release_zip:
+        version = release_zip.stem.replace("PyTrade-Release-", "")
+
+    result.update(
+        {
+            "version": version,
+            "installer": installer,
+            "release_notes": release_notes,
+            "release_zip": release_zip,
+            "manifest": manifest_path if manifest_path.exists() else None,
+        }
+    )
+    return result
+
+
+def _run_powershell_script(path: Path, timeout: int = 900) -> tuple[int, str, str]:
+    return _run_command(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(path)], timeout=timeout)
+
+
 def _project_python() -> str:
     venv_python = ROOT / ".venv" / "Scripts" / "python.exe"
     if venv_python.exists():
@@ -1219,7 +1315,7 @@ def _daemon_status() -> str:
 def _metrics(db_path: Path, live_open_count: int | None = None) -> dict[str, float]:
     if not db_path.exists():
         open_count = int(live_open_count or 0)
-        return {"open": open_count, "sent": open_count, "closed": 0, "failed": 0, "today_pnl": 0.0}
+        return {"open": open_count, "sent": open_count, "closed": 0, "failed": 0, "today_pnl": 0.0, "net_pnl_all": 0.0}
     df = _query_df(
         db_path,
         """
@@ -1227,13 +1323,23 @@ def _metrics(db_path: Path, live_open_count: int | None = None) -> dict[str, flo
           SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) AS sent_count,
           SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) AS closed_count,
           SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed_count,
-          COALESCE(SUM(CASE WHEN status='closed' AND substr(closed_at,1,10)=date('now') THEN pnl ELSE 0 END), 0) AS today_pnl
+          COALESCE(SUM(CASE WHEN status='closed' THEN pnl ELSE 0 END), 0) AS net_pnl_all,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN status='closed'
+                  AND date(datetime(replace(substr(closed_at,1,19),'T',' '), '+7 hours')) = date(datetime('now', '+7 hours'))
+                THEN pnl ELSE 0
+              END
+            ),
+            0
+          ) AS today_pnl
         FROM orders
         """,
     )
     if df.empty:
         open_count = int(live_open_count or 0)
-        return {"open": open_count, "sent": open_count, "closed": 0, "failed": 0, "today_pnl": 0.0}
+        return {"open": open_count, "sent": open_count, "closed": 0, "failed": 0, "today_pnl": 0.0, "net_pnl_all": 0.0}
     r = df.iloc[0]
     sent_count = int(r.get("sent_count", 0) or 0)
     open_count = int(live_open_count) if live_open_count is not None else sent_count
@@ -1243,6 +1349,7 @@ def _metrics(db_path: Path, live_open_count: int | None = None) -> dict[str, flo
         "closed": int(r.get("closed_count", 0) or 0),
         "failed": int(r.get("failed_count", 0) or 0),
         "today_pnl": float(r.get("today_pnl", 0.0) or 0.0),
+        "net_pnl_all": float(r.get("net_pnl_all", 0.0) or 0.0),
     }
 
 
@@ -1706,13 +1813,16 @@ def _render_dashboard(db_path: Path) -> None:
     live_open_count = None if bot_open_err else len(bot_open_df.index)
     m = _metrics(db_path, live_open_count=live_open_count)
     pnl_value = float(m["today_pnl"])
+    net_pnl_all = float(m.get("net_pnl_all", 0.0))
     pnl_text = f"{pnl_value:+.2f}" if abs(pnl_value) > 1e-12 else "0.00"
-    c1, c2, c3, c4, c5 = st.columns(5)
+    net_pnl_text = f"{net_pnl_all:+.2f}" if abs(net_pnl_all) > 1e-12 else "0.00"
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric(t("open"), m["open"])
     c2.metric(t("sent"), m["sent"])
     c3.metric(t("closed"), m["closed"])
     c4.metric(t("failed"), m["failed"])
     c5.metric(t("today_pnl"), pnl_text)
+    c6.metric(t("net_pnl_all"), net_pnl_text)
 
     total_orders = int(m["sent"]) + int(m["closed"]) + int(m["failed"])
     if total_orders == 0:
@@ -1958,11 +2068,13 @@ def _render_performance(db_path: Path) -> None:
     orders["timestamp_utc_dt"] = pd.to_datetime(orders["timestamp"], utc=True, errors="coerce")
     orders["closed_at_utc_dt"] = pd.to_datetime(orders["closed_at"], utc=True, errors="coerce")
     orders["timestamp_bkk_dt"] = orders["timestamp_utc_dt"].dt.tz_convert(BANGKOK_TZ)
+    orders["effective_utc_dt"] = orders["closed_at_utc_dt"].combine_first(orders["timestamp_utc_dt"])
+    orders["effective_bkk_dt"] = orders["effective_utc_dt"].dt.tz_convert(BANGKOK_TZ)
     orders["pnl"] = pd.to_numeric(orders["pnl"], errors="coerce")
 
-    ts_dates = orders["timestamp_bkk_dt"].dropna().dt.date
-    default_end = ts_dates.max() if not ts_dates.empty else datetime.now().date()
-    default_start = max((ts_dates.min() if not ts_dates.empty else default_end), default_end - timedelta(days=7))
+    effective_dates = orders["effective_bkk_dt"].dropna().dt.date
+    default_end = effective_dates.max() if not effective_dates.empty else datetime.now().date()
+    default_start = max((effective_dates.min() if not effective_dates.empty else default_end), default_end - timedelta(days=30))
 
     quick_opts = [t("perf_today"), t("perf_7d"), t("perf_30d"), t("perf_all")]
     quick = st.radio(t("perf_quick_range"), quick_opts, horizontal=True, index=1)
@@ -2007,7 +2119,7 @@ def _render_performance(db_path: Path) -> None:
         d0, d1 = None, None
 
     if quick != t("perf_all") and d0 and d1:
-        view = view[view["timestamp_bkk_dt"].dt.date.between(d0, d1)]
+        view = view[view["effective_bkk_dt"].dt.date.between(d0, d1)]
     if f_symbols:
         view = view[view["symbol"].astype(str).isin(f_symbols)]
     if f_status:
@@ -2813,6 +2925,143 @@ def _render_deploy_wizard() -> None:
     env = _load_env_map()
     db_path = _load_env_db_path()
     db = SignalDB(str(db_path))
+
+    st.markdown(f"### {t('deploy_release_title')}")
+    artifacts = _latest_release_artifacts()
+    output_dir = Path(str(artifacts["output_dir"]))
+    if artifacts["installer"] or artifacts["release_zip"] or artifacts["release_notes"]:
+        r1, r2, r3, r4 = st.columns(4)
+        r1.metric(t("deploy_release_latest"), str(artifacts["version"]))
+        r2.metric(t("deploy_release_installer"), Path(artifacts["installer"]).name if artifacts["installer"] else "-")
+        r3.metric(t("deploy_release_zip"), Path(artifacts["release_zip"]).name if artifacts["release_zip"] else "-")
+        r4.metric(t("deploy_release_notes"), Path(artifacts["release_notes"]).name if artifacts["release_notes"] else "-")
+    else:
+        st.info(t("deploy_release_none"))
+
+    st.caption(f"{t('deploy_release_output')}: {output_dir}")
+
+    rr1, rr2, rr3 = st.columns(3)
+    with rr1:
+        if st.button(t("deploy_release_build_installer"), width="stretch"):
+            code, out, err = _run_powershell_script(ROOT / "scripts" / "build_installer.ps1", timeout=1800)
+            if code == 0:
+                db.log_scan_event("SYSTEM", "INFO", "deploy_build_installer", {"stdout": out})
+                st.success(out or t("deploy_release_built"))
+                st.rerun()
+            else:
+                db.log_scan_event("SYSTEM", "ERROR", "deploy_build_installer_fail", {"stdout": out, "stderr": err})
+                st.error(err or out or t("deploy_release_failed"))
+    with rr2:
+        if st.button(t("deploy_release_package"), width="stretch"):
+            code, out, err = _run_powershell_script(ROOT / "scripts" / "package_release.ps1", timeout=1800)
+            if code == 0:
+                db.log_scan_event("SYSTEM", "INFO", "deploy_package_release", {"stdout": out})
+                st.success(out or t("deploy_release_packaged"))
+                st.rerun()
+            else:
+                db.log_scan_event("SYSTEM", "ERROR", "deploy_package_release_fail", {"stdout": out, "stderr": err})
+                st.error(err or out or t("deploy_release_failed"))
+    with rr3:
+        if st.button(t("deploy_release_build_all"), width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Build-Release.bat", detached=False)
+            db.log_scan_event("SYSTEM", "INFO" if ok else "ERROR", "deploy_build_all", {"message": msg})
+            (st.success if ok else st.error)(msg)
+            if ok:
+                st.rerun()
+
+    rr4, rr5, rr6 = st.columns(3)
+    with rr4:
+        if st.button(t("deploy_release_open_output"), width="stretch"):
+            try:
+                subprocess.Popen(["explorer.exe", str(output_dir)], cwd=str(ROOT), shell=False)
+                st.success(str(output_dir))
+            except Exception as exc:
+                st.error(str(exc))
+    with rr5:
+        if st.button(t("deploy_release_select_version"), width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "scripts" / "Select-Version.bat", detached=True)
+            (st.success if ok else st.warning)(msg)
+    with rr6:
+        if st.button(t("deploy_release_refresh"), width="stretch"):
+            st.rerun()
+
+    dl1, dl2, dl3, dl4 = st.columns(4)
+    with dl1:
+        installer_path = artifacts["installer"]
+        if installer_path and Path(installer_path).exists():
+            p = Path(installer_path)
+            st.download_button(
+                t("deploy_release_download_installer"),
+                data=p.read_bytes(),
+                file_name=p.name,
+                mime="application/vnd.microsoft.portable-executable",
+                width="stretch",
+            )
+    with dl2:
+        zip_path = artifacts["release_zip"]
+        if zip_path and Path(zip_path).exists():
+            p = Path(zip_path)
+            st.download_button(
+                t("deploy_release_download_zip"),
+                data=p.read_bytes(),
+                file_name=p.name,
+                mime="application/zip",
+                width="stretch",
+            )
+    with dl3:
+        notes_path = artifacts["release_notes"]
+        if notes_path and Path(notes_path).exists():
+            p = Path(notes_path)
+            st.download_button(
+                t("deploy_release_download_notes"),
+                data=p.read_bytes(),
+                file_name=p.name,
+                mime="text/markdown",
+                width="stretch",
+            )
+    with dl4:
+        manifest_path = artifacts["manifest"]
+        if manifest_path and Path(manifest_path).exists():
+            p = Path(manifest_path)
+            st.download_button(
+                t("deploy_release_download_manifest"),
+                data=p.read_bytes(),
+                file_name=p.name,
+                mime="application/json",
+                width="stretch",
+            )
+
+    with st.expander("Release artifacts", expanded=False):
+        preview_rows = []
+        for label, key in [
+            (t("deploy_release_installer"), "installer"),
+            (t("deploy_release_zip"), "release_zip"),
+            (t("deploy_release_notes"), "release_notes"),
+            (t("deploy_release_manifest"), "manifest"),
+        ]:
+            path = artifacts[key]
+            if path:
+                p = Path(path)
+                preview_rows.append(
+                    {
+                        "artifact": label,
+                        "file": p.name,
+                        "updated_at": datetime.fromtimestamp(p.stat().st_mtime).astimezone().isoformat(timespec="seconds"),
+                        "size_bytes": p.stat().st_size,
+                    }
+                )
+        if preview_rows:
+            st.dataframe(pd.DataFrame(preview_rows), width="stretch", height=220)
+        else:
+            st.info(t("deploy_release_none"))
+
+    manifest_path = artifacts["manifest"]
+    if manifest_path and Path(manifest_path).exists():
+        with st.expander(t("deploy_release_manifest_preview"), expanded=False):
+            try:
+                st.json(json.loads(Path(manifest_path).read_text(encoding="utf-8")))
+            except Exception as exc:
+                st.error(str(exc))
 
     c1, c2 = st.columns(2)
     with c1:

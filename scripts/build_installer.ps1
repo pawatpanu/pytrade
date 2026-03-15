@@ -33,7 +33,7 @@ $outputName = "PyTradeSetup-$stamp"
 
 Push-Location (Split-Path $issPath -Parent)
 try {
-    & $iscc "/DOutputName=$outputName" $issPath
+    & $iscc "/DOutputName=$outputName" "/DMyAppVersion=$stamp" $issPath
 }
 finally {
     Pop-Location
