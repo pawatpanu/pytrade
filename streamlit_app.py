@@ -5,6 +5,7 @@ import json
 import re
 import sqlite3
 import subprocess
+import time
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -226,6 +227,11 @@ TXT = {
         "health_mt5_test": "ทดสอบ MT5",
         "health_mt5_ok": "เชื่อม MT5 สำเร็จ",
         "health_mt5_fail": "เชื่อม MT5 ไม่สำเร็จ",
+        "health_mt5_status": "สถานะ MT5 ล่าสุด",
+        "health_mt5_ready": "พร้อมใช้งาน",
+        "health_mt5_timeout": "ตอบช้า/timeout",
+        "health_mt5_error": "ผิดพลาด",
+        "health_mt5_retry_note": "ระบบจะ retry สั้นๆ อัตโนมัติและจะไม่ login ซ้ำถ้าบัญชีเดิมยังเชื่อมอยู่",
         "health_import_mt5_history": "นำเข้าประวัติ MT5",
         "health_import_mt5_days": "นำเข้าย้อนหลัง (วัน)",
         "health_import_mt5_done": "นำเข้าประวัติ MT5 เรียบร้อย",
@@ -436,6 +442,11 @@ TXT = {
         "health_mt5_test": "Test MT5",
         "health_mt5_ok": "MT5 connection successful",
         "health_mt5_fail": "MT5 connection failed",
+        "health_mt5_status": "Latest MT5 status",
+        "health_mt5_ready": "Ready",
+        "health_mt5_timeout": "Slow response / timeout",
+        "health_mt5_error": "Error",
+        "health_mt5_retry_note": "The system retries briefly and skips redundant login when the same account is already connected",
         "health_import_mt5_history": "Import MT5 History",
         "health_import_mt5_days": "Import lookback (days)",
         "health_import_mt5_done": "MT5 history imported",
@@ -691,6 +702,55 @@ def _parse_float_env(env: dict[str, str], key: str, default: float) -> float:
         return float(str(env.get(key, default)))
     except (ValueError, TypeError):
         return default
+
+
+def _mt5_initialize_and_login(
+    env: dict[str, str],
+    *,
+    retries: int = 3,
+    delay_seconds: float = 0.75,
+) -> tuple[object | None, str | None]:
+    try:
+        import MetaTrader5 as mt5
+    except Exception as exc:
+        return None, str(exc)
+
+    kwargs = {}
+    if env.get("MT5_PATH"):
+        kwargs["path"] = env["MT5_PATH"]
+
+    last_error = "initialize_failed"
+    for attempt in range(max(1, retries)):
+        if mt5.initialize(**kwargs):
+            break
+        code, msg = mt5.last_error()
+        last_error = f"{code} {msg}"
+        if attempt < retries - 1:
+            time.sleep(delay_seconds * (attempt + 1))
+    else:
+        return None, last_error
+
+    try:
+        login = env.get("MT5_LOGIN")
+        password = env.get("MT5_PASSWORD")
+        server = env.get("MT5_SERVER")
+        if login and password and server:
+            target_login = int(login)
+            account = mt5.account_info()
+            current_login = int(getattr(account, "login", 0) or 0) if account else 0
+            if current_login != target_login:
+                ok = mt5.login(login=target_login, password=password, server=server)
+                if not ok:
+                    code, msg = mt5.last_error()
+                    mt5.shutdown()
+                    return None, f"{code} {msg}"
+        return mt5, None
+    except Exception as exc:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+        return None, str(exc)
 
 
 def _parse_bool_env(env: dict[str, str], key: str, default: bool) -> bool:
@@ -1086,29 +1146,11 @@ def _masked_env(env: dict[str, str]) -> dict[str, str]:
 
 
 def _test_mt5_connection(env: dict[str, str]) -> tuple[bool, dict[str, object]]:
-    try:
-        import MetaTrader5 as mt5
-    except Exception as exc:
-        return False, {"error": str(exc)}
-
-    kwargs = {}
-    if env.get("MT5_PATH"):
-        kwargs["path"] = env["MT5_PATH"]
-
-    if not mt5.initialize(**kwargs):
-        code, msg = mt5.last_error()
-        return False, {"error": f"{code} {msg}"}
+    mt5, error = _mt5_initialize_and_login(env)
+    if mt5 is None:
+        return False, {"error": error or "mt5_unavailable"}
 
     try:
-        login = env.get("MT5_LOGIN")
-        password = env.get("MT5_PASSWORD")
-        server = env.get("MT5_SERVER")
-        if login and password and server:
-            ok = mt5.login(login=int(login), password=password, server=server)
-            if not ok:
-                code, msg = mt5.last_error()
-                return False, {"error": f"{code} {msg}"}
-
         account = mt5.account_info()
         if not account:
             return True, {"login": env.get("MT5_LOGIN", "-"), "server": env.get("MT5_SERVER", "-")}
@@ -1124,6 +1166,19 @@ def _test_mt5_connection(env: dict[str, str]) -> tuple[bool, dict[str, object]]:
             mt5.shutdown()
         except Exception:
             pass
+
+
+def _mt5_health_badge(env: dict[str, str]) -> tuple[str, str, str]:
+    ok, payload = _test_mt5_connection(env)
+    if ok:
+        login = payload.get("login", "-")
+        server = payload.get("server", "-")
+        return "ok", t("health_mt5_ready"), f"login={login} | server={server}"
+
+    error = str(payload.get("error", "") or "")
+    if "10005" in error or "timeout" in error.lower():
+        return "warn", t("health_mt5_timeout"), error
+    return "error", t("health_mt5_error"), error or "unknown error"
 
 
 def _build_support_bundle(env: dict[str, str], db_path: Path) -> tuple[bytes, str, dict[str, object]]:
@@ -1385,26 +1440,11 @@ def _metrics(db_path: Path, live_open_count: int | None = None) -> dict[str, flo
 
 def _fetch_manual_mt5_activity(env: dict[str, str], lookback_days: int = 7, limit: int = 200) -> tuple[pd.DataFrame, pd.DataFrame, str | None]:
     """Fetch manual open positions and closed deals directly from MT5."""
-    try:
-        import MetaTrader5 as mt5
-    except Exception as exc:
-        return pd.DataFrame(), pd.DataFrame(), str(exc)
-
-    kwargs = {}
-    if env.get("MT5_PATH"):
-        kwargs["path"] = env["MT5_PATH"]
-
-    if not mt5.initialize(**kwargs):
-        code, msg = mt5.last_error()
-        return pd.DataFrame(), pd.DataFrame(), f"{code} {msg}"
+    mt5, error = _mt5_initialize_and_login(env)
+    if mt5 is None:
+        return pd.DataFrame(), pd.DataFrame(), error or "mt5_unavailable"
 
     try:
-        login = env.get("MT5_LOGIN")
-        password = env.get("MT5_PASSWORD")
-        server = env.get("MT5_SERVER")
-        if login and password and server:
-            mt5.login(login=int(login), password=password, server=server)
-
         bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
 
         positions = mt5.positions_get() or []
@@ -1475,26 +1515,11 @@ def _fetch_manual_mt5_activity(env: dict[str, str], lookback_days: int = 7, limi
 
 def _fetch_bot_mt5_positions(env: dict[str, str], limit: int = 50) -> tuple[pd.DataFrame, str | None]:
     """Fetch live open positions for this bot directly from MT5 using MAGIC_NUMBER."""
-    try:
-        import MetaTrader5 as mt5
-    except Exception as exc:
-        return pd.DataFrame(), str(exc)
-
-    kwargs = {}
-    if env.get("MT5_PATH"):
-        kwargs["path"] = env["MT5_PATH"]
-
-    if not mt5.initialize(**kwargs):
-        code, msg = mt5.last_error()
-        return pd.DataFrame(), f"{code} {msg}"
+    mt5, error = _mt5_initialize_and_login(env)
+    if mt5 is None:
+        return pd.DataFrame(), error or "mt5_unavailable"
 
     try:
-        login = env.get("MT5_LOGIN")
-        password = env.get("MT5_PASSWORD")
-        server = env.get("MT5_SERVER")
-        if login and password and server:
-            mt5.login(login=int(login), password=password, server=server)
-
         bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
         positions = mt5.positions_get() or []
         rows: list[dict[str, object]] = []
@@ -1564,31 +1589,13 @@ def _import_mt5_history_to_db(
     *,
     lookback_days: int = 30,
 ) -> tuple[dict[str, int], str | None]:
-    try:
-        import MetaTrader5 as mt5
-    except Exception as exc:
-        return {}, str(exc)
-
     db = SignalDB(str(db_path))
-    kwargs = {}
-    if env.get("MT5_PATH"):
-        kwargs["path"] = env["MT5_PATH"]
-
-    if not mt5.initialize(**kwargs):
-        code, msg = mt5.last_error()
-        return {}, f"{code} {msg}"
+    mt5, error = _mt5_initialize_and_login(env)
+    if mt5 is None:
+        return {}, error or "mt5_unavailable"
 
     stats = {"open_imported": 0, "closed_imported": 0, "skipped": 0}
     try:
-        login = env.get("MT5_LOGIN")
-        password = env.get("MT5_PASSWORD")
-        server = env.get("MT5_SERVER")
-        if login and password and server:
-            ok = mt5.login(login=int(login), password=password, server=server)
-            if not ok:
-                code, msg = mt5.last_error()
-                return {}, f"{code} {msg}"
-
         bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
 
         positions = mt5.positions_get() or []
@@ -1700,27 +1707,10 @@ def _import_mt5_history_to_db(
 
 
 def _mt5_bot_activity_summary(env: dict[str, str], *, lookback_days: int = 30) -> tuple[dict[str, int], str | None]:
+    mt5, error = _mt5_initialize_and_login(env)
+    if mt5 is None:
+        return {}, error or "mt5_unavailable"
     try:
-        import MetaTrader5 as mt5
-    except Exception as exc:
-        return {}, str(exc)
-
-    kwargs = {}
-    if env.get("MT5_PATH"):
-        kwargs["path"] = env["MT5_PATH"]
-    if not mt5.initialize(**kwargs):
-        code, msg = mt5.last_error()
-        return {}, f"{code} {msg}"
-    try:
-        login = env.get("MT5_LOGIN")
-        password = env.get("MT5_PASSWORD")
-        server = env.get("MT5_SERVER")
-        if login and password and server:
-            ok = mt5.login(login=int(login), password=password, server=server)
-            if not ok:
-                code, msg = mt5.last_error()
-                return {}, f"{code} {msg}"
-
         bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
         open_positions = [p for p in (mt5.positions_get() or []) if int(getattr(p, "magic", 0) or 0) == bot_magic]
         time_to = datetime.now(timezone.utc)
@@ -2269,21 +2259,10 @@ def _render_portfolio() -> None:
 
     env = _load_env_map()
     try:
-        import MetaTrader5 as mt5
-
-        kwargs = {}
-        if env.get("MT5_PATH"):
-            kwargs["path"] = env["MT5_PATH"]
-        if not mt5.initialize(**kwargs):
-            code, msg = mt5.last_error()
-            st.error(f"{t('mt5_error')}: {code} {msg}")
+        mt5, error = _mt5_initialize_and_login(env)
+        if mt5 is None:
+            st.error(f"{t('mt5_error')}: {error}")
             return
-
-        login = env.get("MT5_LOGIN")
-        password = env.get("MT5_PASSWORD")
-        server = env.get("MT5_SERVER")
-        if login and password and server:
-            mt5.login(login=int(login), password=password, server=server)
 
         account = mt5.account_info()
         if account:
@@ -2371,6 +2350,15 @@ def _render_system_health(db_path: Path) -> None:
         f"MT5_SERVER={env.get('MT5_SERVER', '-') or '-'} | "
         f"DB_PATH={env.get('DB_PATH', 'signals.db')}"
     )
+
+    mt5_level, mt5_label, mt5_details = _mt5_health_badge(env)
+    st.markdown(
+        f"### {t('health_mt5_status')} &nbsp; {_status_badge(mt5_label, mt5_level)}",
+        unsafe_allow_html=True,
+    )
+    if mt5_details:
+        st.caption(mt5_details)
+    st.caption(t("health_mt5_retry_note"))
 
     st.markdown(f"### {t('health_version')}")
     v1, v2, v3 = st.columns(3)

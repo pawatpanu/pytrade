@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 import MetaTrader5 as mt5
@@ -23,22 +24,32 @@ class MT5Connector:
         if self.config.mt5_path:
             kwargs["path"] = self.config.mt5_path
 
-        if not mt5.initialize(**kwargs):
+        connected = False
+        for attempt in range(3):
+            if mt5.initialize(**kwargs):
+                connected = True
+                break
             code, msg = mt5.last_error()
-            logger.error("MT5 initialize failed: %s (%s)", code, msg)
+            logger.error("MT5 initialize failed: %s (%s) [attempt %s/3]", code, msg, attempt + 1)
+            if attempt < 2:
+                time.sleep(0.75 * (attempt + 1))
+        if not connected:
             return False
 
         if self.config.mt5_login and self.config.mt5_password and self.config.mt5_server:
-            logged_in = mt5.login(
-                login=self.config.mt5_login,
-                password=self.config.mt5_password,
-                server=self.config.mt5_server,
-            )
-            if not logged_in:
-                code, msg = mt5.last_error()
-                logger.error("MT5 login failed: %s (%s)", code, msg)
-                mt5.shutdown()
-                return False
+            account = mt5.account_info()
+            current_login = int(getattr(account, "login", 0) or 0) if account else 0
+            if current_login != int(self.config.mt5_login):
+                logged_in = mt5.login(
+                    login=self.config.mt5_login,
+                    password=self.config.mt5_password,
+                    server=self.config.mt5_server,
+                )
+                if not logged_in:
+                    code, msg = mt5.last_error()
+                    logger.error("MT5 login failed: %s (%s)", code, msg)
+                    mt5.shutdown()
+                    return False
 
         self.connected = True
         logger.info("MT5 connected successfully")
