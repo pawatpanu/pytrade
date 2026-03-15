@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import io
+import hmac
 import json
 import re
 import sqlite3
@@ -244,6 +245,16 @@ TXT = {
         "health_git_branch": "สาขา Git",
         "health_git_commit": "Commit ปัจจุบัน",
         "health_git_commit_time": "เวลา commit ล่าสุด",
+        "access_title": "สิทธิ์การใช้งาน",
+        "access_mode": "โหมดปัจจุบัน",
+        "access_viewer": "ผู้ชม",
+        "access_admin": "ผู้ดูแล",
+        "access_password": "รหัสผ่านผู้ดูแล",
+        "access_unlock": "ปลดล็อกโหมดผู้ดูแล",
+        "access_lock": "กลับเป็นโหมดผู้ชม",
+        "access_unlock_failed": "รหัสผ่านไม่ถูกต้อง",
+        "access_limited_tools": "ลิงก์นี้ดูข้อมูลได้ แต่เมนูแก้ไขระบบ สั่งงาน และปล่อยเวอร์ชันถูกปิดไว้",
+        "access_admin_only": "ส่วนนี้เปิดได้เฉพาะผู้ดูแลระบบ",
     },
     "en": {
         "title": "PyTrade Control Center",
@@ -459,6 +470,16 @@ TXT = {
         "health_git_branch": "Git Branch",
         "health_git_commit": "Current Commit",
         "health_git_commit_time": "Last Commit Time",
+        "access_title": "Access",
+        "access_mode": "Current mode",
+        "access_viewer": "Viewer",
+        "access_admin": "Admin",
+        "access_password": "Admin password",
+        "access_unlock": "Unlock admin mode",
+        "access_lock": "Switch back to viewer",
+        "access_unlock_failed": "Incorrect password",
+        "access_limited_tools": "This link can view data, but config, system control, and release tools are disabled.",
+        "access_admin_only": "This section is available to admins only.",
     },
 }
 
@@ -672,6 +693,54 @@ def _load_env_map() -> dict[str, str]:
         k, v = s.split("=", 1)
         data[k.strip()] = v.strip()
     return data
+
+
+def _app_admin_password(env: dict[str, str]) -> str:
+    return str(env.get("APP_ADMIN_PASSWORD", "")).strip()
+
+
+def _app_default_role(env: dict[str, str]) -> str:
+    raw = str(env.get("APP_DEFAULT_ROLE", "")).strip().lower()
+    if raw in {"viewer", "admin"}:
+        return raw
+    return "viewer" if _app_admin_password(env) else "admin"
+
+
+def _is_admin() -> bool:
+    return str(st.session_state.get("access_role", "viewer")) == "admin"
+
+
+def _ensure_access_session(env: dict[str, str]) -> None:
+    if "access_role" not in st.session_state:
+        st.session_state["access_role"] = _app_default_role(env)
+    if not _app_admin_password(env):
+        st.session_state["access_role"] = "admin"
+
+
+def _render_access_controls(env: dict[str, str]) -> None:
+    st.sidebar.markdown(f"### {t('access_title')}")
+    is_admin = _is_admin()
+    mode_label = t("access_admin") if is_admin else t("access_viewer")
+    st.sidebar.caption(f"{t('access_mode')}: **{mode_label}**")
+
+    admin_password = _app_admin_password(env)
+    if not admin_password:
+        return
+
+    if is_admin:
+        if st.sidebar.button(t("access_lock"), width="stretch"):
+            st.session_state["access_role"] = "viewer"
+            st.rerun()
+        return
+
+    entered = st.sidebar.text_input(t("access_password"), type="password", key="access_password_input")
+    if st.sidebar.button(t("access_unlock"), width="stretch"):
+        if hmac.compare_digest(entered, admin_password):
+            st.session_state["access_role"] = "admin"
+            st.session_state["access_password_input"] = ""
+            st.rerun()
+        else:
+            st.sidebar.error(t("access_unlock_failed"))
 
 
 def _asset_profile_name(symbol: str) -> str:
@@ -1731,7 +1800,7 @@ def _mt5_bot_activity_summary(env: dict[str, str], *, lookback_days: int = 30) -
             pass
 
 
-def _render_controls(db_path: Path) -> None:
+def _render_controls(db_path: Path, is_admin: bool) -> None:
     st.sidebar.header(t("controls"))
     st.sidebar.caption(f"{t('db')}: {db_path}")
     st.sidebar.write(f"{t('daemon')}: **{_daemon_status()}**")
@@ -1752,6 +1821,7 @@ def _render_controls(db_path: Path) -> None:
     st.sidebar.checkbox(t("auto_refresh"), key="auto_refresh")
     st.sidebar.number_input(t("refresh_sec"), min_value=5, max_value=300, step=5, key="refresh_sec")
     st.sidebar.caption(t("refresh_hint"))
+    _render_access_controls(env)
     _persist_ui_state_to_query()
 
     refreshable_tabs = {"dashboard", "portfolio", "health"}
@@ -1766,59 +1836,62 @@ def _render_controls(db_path: Path) -> None:
     elif st.session_state.get("auto_refresh") and active_tab not in refreshable_tabs:
         st.sidebar.caption(t("refresh_paused"))
 
-    if st.sidebar.button(t("scan_once"), width="stretch"):
-        with st.sidebar.status("...", expanded=True) as status:
-            code, out, err = _run_command([_project_python(), "main.py", "--mode", "scan", "--once"], timeout=600)
-            status.write(out or "(no stdout)")
-            if err:
-                status.write(err)
-            status.update(label=f"Done (code={code})", state="complete")
+    if is_admin:
+        if st.sidebar.button(t("scan_once"), width="stretch"):
+            with st.sidebar.status("...", expanded=True) as status:
+                code, out, err = _run_command([_project_python(), "main.py", "--mode", "scan", "--once"], timeout=600)
+                status.write(out or "(no stdout)")
+                if err:
+                    status.write(err)
+                status.update(label=f"Done (code={code})", state="complete")
 
-    if st.sidebar.button(t("sync"), width="stretch"):
-        with st.sidebar.status("...", expanded=True) as status:
-            code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
-            status.write(out or "(no stdout)")
-            if err:
-                status.write(err)
-            status.update(label=f"Done (code={code})", state="complete")
+        if st.sidebar.button(t("sync"), width="stretch"):
+            with st.sidebar.status("...", expanded=True) as status:
+                code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
+                status.write(out or "(no stdout)")
+                if err:
+                    status.write(err)
+                status.update(label=f"Done (code={code})", state="complete")
 
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        if st.button(t("start_daemon"), width="stretch"):
-            ok, msg = _start_daemon()
+        c1, c2 = st.sidebar.columns(2)
+        with c1:
+            if st.button(t("start_daemon"), width="stretch"):
+                ok, msg = _start_daemon()
+                (st.success if ok else st.warning)(msg)
+        with c2:
+            if st.button(t("stop_daemon"), width="stretch"):
+                ok, msg = _stop_daemon()
+                (st.success if ok else st.warning)(msg)
+
+        st.sidebar.caption("Quick Launchers")
+        q1, q2 = st.sidebar.columns(2)
+        with q1:
+            if st.button("Start All", width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Start-All.bat", detached=True)
+                (st.success if ok else st.warning)(msg)
+        with q2:
+            if st.button("Stop All", width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Stop-All.bat")
+                (st.success if ok else st.warning)(msg)
+
+        q3, q4 = st.sidebar.columns(2)
+        with q3:
+            if st.button("Restart All", width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
+                (st.success if ok else st.warning)(msg)
+        with q4:
+            if st.button("Open Logs", width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
+                (st.success if ok else st.warning)(msg)
+
+        if st.sidebar.button("Status Check", width="stretch"):
+            ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
             (st.success if ok else st.warning)(msg)
-    with c2:
-        if st.button(t("stop_daemon"), width="stretch"):
-            ok, msg = _stop_daemon()
-            (st.success if ok else st.warning)(msg)
-
-    st.sidebar.caption("Quick Launchers")
-    q1, q2 = st.sidebar.columns(2)
-    with q1:
-        if st.button("Start All", width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Start-All.bat", detached=True)
-            (st.success if ok else st.warning)(msg)
-    with q2:
-        if st.button("Stop All", width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Stop-All.bat")
-            (st.success if ok else st.warning)(msg)
-
-    q3, q4 = st.sidebar.columns(2)
-    with q3:
-        if st.button("Restart All", width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
-            (st.success if ok else st.warning)(msg)
-    with q4:
-        if st.button("Open Logs", width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
-            (st.success if ok else st.warning)(msg)
-
-    if st.sidebar.button("Status Check", width="stretch"):
-        ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
-        (st.success if ok else st.warning)(msg)
+    else:
+        st.sidebar.info(t("access_limited_tools"))
 
 
-def _render_dashboard(db_path: Path) -> None:
+def _render_dashboard(db_path: Path, is_admin: bool) -> None:
     st.subheader(t("overview"))
     env = _load_env_map()
     bot_open_df, bot_open_err = _fetch_bot_mt5_positions(env, limit=20)
@@ -1851,7 +1924,7 @@ def _render_dashboard(db_path: Path) -> None:
                 f"{t('dashboard_import_hint')}: "
                 f"open={mt5_summary.get('open', 0)} closed={mt5_summary.get('closed', 0)}"
             )
-            if st.button(t("health_import_mt5_history"), key="dashboard_import_mt5_history", width="stretch"):
+            if is_admin and st.button(t("health_import_mt5_history"), key="dashboard_import_mt5_history", width="stretch"):
                 stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=30)
                 if error:
                     st.error(f"{t('health_import_mt5_fail')}: {error}")
@@ -1928,23 +2001,26 @@ def _render_dashboard(db_path: Path) -> None:
         st.dataframe(bot_open_df[open_cols], width="stretch", height=220)
 
     st.subheader(t("cleanup"))
-    cc1, cc2, cc3 = st.columns(3)
-    with cc1:
-        if st.button(t("del_below"), width="stretch"):
-            _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='below_min_execute_category'")
-            st.success("OK")
-    with cc2:
-        if st.button(t("del_cooldown"), width="stretch"):
-            _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='cooldown_active'")
-            st.success("OK")
-    with cc3:
-        if st.button(t("reset_loss_guard"), width="stretch"):
-            if db_path.exists():
-                db = SignalDB(str(db_path))
-                reset_at = db.reset_daily_loss_guard()
-                st.success(f"OK: {reset_at}")
-            else:
-                st.warning("DB not found")
+    if is_admin:
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            if st.button(t("del_below"), width="stretch"):
+                _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='below_min_execute_category'")
+                st.success("OK")
+        with cc2:
+            if st.button(t("del_cooldown"), width="stretch"):
+                _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='cooldown_active'")
+                st.success("OK")
+        with cc3:
+            if st.button(t("reset_loss_guard"), width="stretch"):
+                if db_path.exists():
+                    db = SignalDB(str(db_path))
+                    reset_at = db.reset_daily_loss_guard()
+                    st.success(f"OK: {reset_at}")
+                else:
+                    st.warning("DB not found")
+    else:
+        st.info(t("access_admin_only"))
 
     if db_path.exists():
         db = SignalDB(str(db_path))
@@ -2309,7 +2385,7 @@ def _render_portfolio() -> None:
             pass
 
 
-def _render_system_health(db_path: Path) -> None:
+def _render_system_health(db_path: Path, is_admin: bool) -> None:
     st.subheader(t("health_title"))
     env = _load_env_map()
     db = SignalDB(str(db_path))
@@ -2366,83 +2442,86 @@ def _render_system_health(db_path: Path) -> None:
     v2.metric(t("health_git_commit"), git_info["commit"])
     v3.metric(t("health_git_commit_time"), git_info["commit_time"])
 
-    import_days = st.number_input(t("health_import_mt5_days"), min_value=1, max_value=365, value=30, step=1)
+    if is_admin:
+        import_days = st.number_input(t("health_import_mt5_days"), min_value=1, max_value=365, value=30, step=1)
 
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        if st.button(t("health_mt5_test"), width="stretch"):
-            ok, payload = _test_mt5_connection(env)
-            if ok:
-                db.log_scan_event("SYSTEM", "INFO", "health_mt5_test_ok", payload)
-                st.success(t("health_mt5_ok"))
-                st.json(payload)
-            else:
-                db.log_scan_event("SYSTEM", "ERROR", "health_mt5_test_fail", payload)
-                st.error(f"{t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
-    with m2:
-        if st.button(t("health_import_mt5_history"), width="stretch"):
-            stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=int(import_days))
-            if error:
-                db.log_scan_event("SYSTEM", "ERROR", "health_import_mt5_history_fail", {"error": error, "days": int(import_days), **stats})
-                st.error(f"{t('health_import_mt5_fail')}: {error}")
-            else:
-                db.log_scan_event("SYSTEM", "INFO", "health_import_mt5_history_done", {"days": int(import_days), **stats})
-                st.success(
-                    f"{t('health_import_mt5_done')}: "
-                    f"open={stats.get('open_imported', 0)} "
-                    f"closed={stats.get('closed_imported', 0)} "
-                    f"skipped={stats.get('skipped', 0)}"
-                )
-                st.json(stats)
-    with m3:
-        bundle_bytes, bundle_name, bundle_summary = _build_support_bundle(env, db_path)
-        downloaded = st.download_button(
-            t("health_support_bundle"),
-            data=bundle_bytes,
-            file_name=bundle_name,
-            mime="application/zip",
-            width="stretch",
-        )
-        with st.expander(t("health_support_preview"), expanded=False):
-            st.json(bundle_summary)
-        if downloaded:
-            db.log_scan_event("SYSTEM", "INFO", "health_support_bundle_downloaded", {"file_name": bundle_name, **bundle_summary})
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            if st.button(t("health_mt5_test"), width="stretch"):
+                ok, payload = _test_mt5_connection(env)
+                if ok:
+                    db.log_scan_event("SYSTEM", "INFO", "health_mt5_test_ok", payload)
+                    st.success(t("health_mt5_ok"))
+                    st.json(payload)
+                else:
+                    db.log_scan_event("SYSTEM", "ERROR", "health_mt5_test_fail", payload)
+                    st.error(f"{t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
+        with m2:
+            if st.button(t("health_import_mt5_history"), width="stretch"):
+                stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=int(import_days))
+                if error:
+                    db.log_scan_event("SYSTEM", "ERROR", "health_import_mt5_history_fail", {"error": error, "days": int(import_days), **stats})
+                    st.error(f"{t('health_import_mt5_fail')}: {error}")
+                else:
+                    db.log_scan_event("SYSTEM", "INFO", "health_import_mt5_history_done", {"days": int(import_days), **stats})
+                    st.success(
+                        f"{t('health_import_mt5_done')}: "
+                        f"open={stats.get('open_imported', 0)} "
+                        f"closed={stats.get('closed_imported', 0)} "
+                        f"skipped={stats.get('skipped', 0)}"
+                    )
+                    st.json(stats)
+        with m3:
+            bundle_bytes, bundle_name, bundle_summary = _build_support_bundle(env, db_path)
+            downloaded = st.download_button(
+                t("health_support_bundle"),
+                data=bundle_bytes,
+                file_name=bundle_name,
+                mime="application/zip",
+                width="stretch",
+            )
+            with st.expander(t("health_support_preview"), expanded=False):
+                st.json(bundle_summary)
+            if downloaded:
+                db.log_scan_event("SYSTEM", "INFO", "health_support_bundle_downloaded", {"file_name": bundle_name, **bundle_summary})
 
-    a1, a2 = st.columns(2)
-    with a1:
-        if st.button(t("health_open_logs"), width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
-            (st.success if ok else st.warning)(msg)
-    with a2:
-        if st.button(t("health_status_check"), width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
-            (st.success if ok else st.warning)(msg)
+        a1, a2 = st.columns(2)
+        with a1:
+            if st.button(t("health_open_logs"), width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
+                (st.success if ok else st.warning)(msg)
+        with a2:
+            if st.button(t("health_status_check"), width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
+                (st.success if ok else st.warning)(msg)
 
-    st.markdown(f"### {t('health_self_heal')}")
-    h1, h2, h3 = st.columns(3)
-    with h1:
-        if st.button(t("health_clear_stale_pid"), width="stretch"):
-            if stale_pid:
-                _clear_pid_info()
-                db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": True})
-                st.success("Cleared stale PID file")
-            else:
-                db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": False})
-                st.info("No stale PID to clear")
-    with h2:
-        if st.button(t("health_run_sync_now"), width="stretch"):
-            with st.status("...", expanded=True) as status:
-                code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
-                status.write(out or "(no stdout)")
-                if err:
-                    status.write(err)
-                status.update(label=f"Done (code={code})", state="complete")
-                db.log_scan_event("SYSTEM", "INFO" if code == 0 else "ERROR", "health_run_sync_now", {"code": code, "stdout": out, "stderr": err})
-    with h3:
-        if st.button(t("health_restart_all"), width="stretch"):
-            ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
-            db.log_scan_event("SYSTEM", "INFO" if ok else "ERROR", "health_restart_all", {"message": msg})
-            (st.success if ok else st.warning)(msg)
+        st.markdown(f"### {t('health_self_heal')}")
+        h1, h2, h3 = st.columns(3)
+        with h1:
+            if st.button(t("health_clear_stale_pid"), width="stretch"):
+                if stale_pid:
+                    _clear_pid_info()
+                    db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": True})
+                    st.success("Cleared stale PID file")
+                else:
+                    db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": False})
+                    st.info("No stale PID to clear")
+        with h2:
+            if st.button(t("health_run_sync_now"), width="stretch"):
+                with st.status("...", expanded=True) as status:
+                    code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
+                    status.write(out or "(no stdout)")
+                    if err:
+                        status.write(err)
+                    status.update(label=f"Done (code={code})", state="complete")
+                    db.log_scan_event("SYSTEM", "INFO" if code == 0 else "ERROR", "health_run_sync_now", {"code": code, "stdout": out, "stderr": err})
+        with h3:
+            if st.button(t("health_restart_all"), width="stretch"):
+                ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
+                db.log_scan_event("SYSTEM", "INFO" if ok else "ERROR", "health_restart_all", {"message": msg})
+                (st.success if ok else st.warning)(msg)
+    else:
+        st.info(t("access_admin_only"))
 
     st.markdown(f"### {t('health_ports')}")
     st.dataframe(_port_snapshot([8501, 8502]), width="stretch", height=180)
@@ -3185,19 +3264,26 @@ def main() -> None:
         st.session_state["lang"] = "th"
     st.title(t("title"))
 
+    env = _load_env_map()
+    _ensure_access_session(env)
+    is_admin = _is_admin()
     db_path = _load_env_db_path()
-    _render_controls(db_path)
+    _render_controls(db_path, is_admin)
     tab_options = [
         ("dashboard", t("tab_dashboard")),
         ("performance", t("tab_performance")),
         ("portfolio", t("tab_portfolio")),
         ("health", t("tab_health")),
-        ("config", t("tab_config")),
         ("guide", t("tab_guide")),
-        ("deploy", t("tab_deploy")),
     ]
+    if is_admin:
+        tab_options.extend([("config", t("tab_config")), ("deploy", t("tab_deploy"))])
     tab_labels = [label for _, label in tab_options]
     current_key = str(st.session_state.get("active_tab", "dashboard"))
+    valid_keys = {key for key, _ in tab_options}
+    if current_key not in valid_keys:
+        current_key = "dashboard"
+        st.session_state["active_tab"] = current_key
     current_index = next((i for i, (key, _) in enumerate(tab_options) if key == current_key), 0)
     selected_label = st.radio(
         "Navigation",
@@ -3211,13 +3297,13 @@ def main() -> None:
     _persist_ui_state_to_query()
 
     if selected_key == "dashboard":
-        _render_dashboard(db_path)
+        _render_dashboard(db_path, is_admin)
     elif selected_key == "performance":
         _render_performance(db_path)
     elif selected_key == "portfolio":
         _render_portfolio()
     elif selected_key == "health":
-        _render_system_health(db_path)
+        _render_system_health(db_path, is_admin)
     elif selected_key == "config":
         _render_config_editor()
     elif selected_key == "guide":
