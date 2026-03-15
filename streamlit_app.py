@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from config import CONFIG
 from core.logger_db import SignalDB
 
 try:
@@ -54,6 +55,7 @@ TXT = {
         "auto_refresh": "รีเฟรชอัตโนมัติ",
         "refresh_sec": "ทุกกี่วินาที",
         "refresh_hint": "เมื่อเปิด ระบบจะรีโหลดหน้าเว็บอัตโนมัติทุก N วินาที",
+        "refresh_paused": "หน้านี้หยุดรีเฟรชอัตโนมัติชั่วคราว เพื่อให้อ่านข้อมูลได้ต่อเนื่อง",
         "overview": "ภาพรวมการเทรด",
         "open": "ออเดอร์เปิด",
         "sent": "ส่งแล้ว",
@@ -100,7 +102,10 @@ TXT = {
         "perf_direction": "ทิศทาง",
         "perf_reason": "เหตุผล",
         "perf_category": "หมวดสัญญาณ",
+        "perf_asset_profile": "Asset Profile",
         "perf_closed_only": "เฉพาะออเดอร์ปิดแล้ว",
+        "perf_profile_summary": "สรุปผลงานตามประเภททรัพย์",
+        "perf_symbol_summary": "สรุปผลงานตามสัญลักษณ์",
         "perf_rows": "จำนวนรายการ",
         "perf_net_pnl": "กำไร/ขาดทุนสุทธิ",
         "perf_win_rate": "อัตราชนะ",
@@ -260,6 +265,7 @@ TXT = {
         "auto_refresh": "Auto Refresh",
         "refresh_sec": "Refresh seconds",
         "refresh_hint": "When enabled, this page auto-reloads every N seconds.",
+        "refresh_paused": "Auto refresh is paused on this page so you can read without interruption.",
         "overview": "Trading Overview",
         "open": "Open",
         "sent": "Sent",
@@ -306,7 +312,10 @@ TXT = {
         "perf_direction": "Direction",
         "perf_reason": "Reason",
         "perf_category": "Signal Category",
+        "perf_asset_profile": "Asset Profile",
         "perf_closed_only": "Closed orders only",
+        "perf_profile_summary": "Performance by Asset Profile",
+        "perf_symbol_summary": "Performance by Symbol",
         "perf_rows": "Rows",
         "perf_net_pnl": "Net PnL",
         "perf_win_rate": "Win Rate",
@@ -556,11 +565,15 @@ def _init_ui_state_from_query() -> None:
         if "lang" not in st.session_state:
             lang = str(qp.get("lang", "th")).lower()
             st.session_state["lang"] = lang if lang in {"th", "en"} else "th"
+        if "active_tab" not in st.session_state:
+            st.session_state["active_tab"] = str(qp.get("tab", "dashboard"))
     except Exception:
         if "auto_refresh" not in st.session_state:
             st.session_state["auto_refresh"] = False
         if "refresh_sec" not in st.session_state:
             st.session_state["refresh_sec"] = 15
+        if "active_tab" not in st.session_state:
+            st.session_state["active_tab"] = "dashboard"
 
 
 def _persist_ui_state_to_query() -> None:
@@ -568,6 +581,7 @@ def _persist_ui_state_to_query() -> None:
         st.query_params["ar"] = "1" if bool(st.session_state.get("auto_refresh", False)) else "0"
         st.query_params["rs"] = str(int(st.session_state.get("refresh_sec", 15)))
         st.query_params["lang"] = str(st.session_state.get("lang", "th"))
+        st.query_params["tab"] = str(st.session_state.get("active_tab", "dashboard"))
     except Exception:
         pass
 
@@ -647,6 +661,22 @@ def _load_env_map() -> dict[str, str]:
         k, v = s.split("=", 1)
         data[k.strip()] = v.strip()
     return data
+
+
+def _asset_profile_name(symbol: str) -> str:
+    return CONFIG.asset_profile_name(str(symbol or ""))
+
+
+def _mt5_direction_label(raw_type: object) -> str:
+    try:
+        value = int(raw_type)
+    except (ValueError, TypeError):
+        return str(raw_type or "")
+    if value == 0:
+        return "BUY"
+    if value in (1, -1):
+        return "SELL"
+    return str(value)
 
 
 def _parse_int_env(env: dict[str, str], key: str, default: int) -> int:
@@ -1383,8 +1413,7 @@ def _fetch_manual_mt5_activity(env: dict[str, str], lookback_days: int = 7, limi
             magic = int(getattr(p, "magic", 0) or 0)
             if magic == bot_magic:
                 continue
-            p_type = int(getattr(p, "type", -1) or -1)
-            direction = "BUY" if p_type == 0 else ("SELL" if p_type == 1 else str(p_type))
+            direction = _mt5_direction_label(getattr(p, "type", -1))
             open_rows.append(
                 {
                     "ticket": int(getattr(p, "ticket", 0) or 0),
@@ -1413,8 +1442,7 @@ def _fetch_manual_mt5_activity(env: dict[str, str], lookback_days: int = 7, limi
             entry = int(getattr(d, "entry", -1) or -1)
             if entry not in (1, 3):
                 continue
-            d_type = int(getattr(d, "type", -1) or -1)
-            direction = "BUY" if d_type == 0 else ("SELL" if d_type == 1 else str(d_type))
+            direction = _mt5_direction_label(getattr(d, "type", -1))
             closed_rows.append(
                 {
                     "deal": int(getattr(d, "ticket", 0) or 0),
@@ -1474,8 +1502,7 @@ def _fetch_bot_mt5_positions(env: dict[str, str], limit: int = 50) -> tuple[pd.D
             magic = int(getattr(p, "magic", 0) or 0)
             if magic != bot_magic:
                 continue
-            p_type = int(getattr(p, "type", -1) or -1)
-            direction = "BUY" if p_type == 0 else ("SELL" if p_type == 1 else str(p_type))
+            direction = _mt5_direction_label(getattr(p, "type", -1))
             rows.append(
                 {
                     "ticket": int(getattr(p, "ticket", 0) or 0),
@@ -1573,8 +1600,7 @@ def _import_mt5_history_to_db(
             if _order_exists(db_path, mt5_position=ticket, mt5_order=ticket):
                 stats["skipped"] += 1
                 continue
-            p_type = int(getattr(p, "type", -1) or -1)
-            direction = "BUY" if p_type == 0 else "SELL"
+            direction = _mt5_direction_label(getattr(p, "type", -1))
             opened_at = datetime.fromtimestamp(int(getattr(p, "time", 0) or 0), timezone.utc).isoformat()
             db.log_order(
                 timestamp=opened_at,
@@ -1632,8 +1658,7 @@ def _import_mt5_history_to_db(
             out_deals.sort(key=lambda d: int(getattr(d, "time", 0) or 0))
             first_in = in_deals[0]
             last_out = out_deals[-1]
-            d_type = int(getattr(first_in, "type", -1) or -1)
-            direction = "BUY" if d_type == 0 else "SELL"
+            direction = _mt5_direction_label(getattr(first_in, "type", -1))
             opened_at = datetime.fromtimestamp(int(getattr(first_in, "time", 0) or 0), timezone.utc).isoformat()
             closed_at = datetime.fromtimestamp(int(getattr(last_out, "time", 0) or 0), timezone.utc).isoformat()
             total_pnl = sum(
@@ -1739,13 +1764,17 @@ def _render_controls(db_path: Path) -> None:
     st.sidebar.caption(t("refresh_hint"))
     _persist_ui_state_to_query()
 
-    if st.session_state.get("auto_refresh"):
+    refreshable_tabs = {"dashboard", "portfolio", "health"}
+    active_tab = str(st.session_state.get("active_tab", "dashboard"))
+    if st.session_state.get("auto_refresh") and active_tab in refreshable_tabs:
         sec = int(st.session_state.get("refresh_sec", 15))
         if st_autorefresh is not None:
             st_autorefresh(interval=sec * 1000, key="pytrade_soft_refresh")
         else:
             st.caption("Tip: install `streamlit-autorefresh` for smoother refresh without full page reload.")
             st.markdown(f"<meta http-equiv='refresh' content='{sec}'>", unsafe_allow_html=True)
+    elif st.session_state.get("auto_refresh") and active_tab not in refreshable_tabs:
+        st.sidebar.caption(t("refresh_paused"))
 
     if st.sidebar.button(t("scan_once"), width="stretch"):
         with st.sidebar.status("...", expanded=True) as status:
@@ -2071,6 +2100,7 @@ def _render_performance(db_path: Path) -> None:
     orders["effective_utc_dt"] = orders["closed_at_utc_dt"].combine_first(orders["timestamp_utc_dt"])
     orders["effective_bkk_dt"] = orders["effective_utc_dt"].dt.tz_convert(BANGKOK_TZ)
     orders["pnl"] = pd.to_numeric(orders["pnl"], errors="coerce")
+    orders["asset_profile"] = orders["symbol"].fillna("").astype(str).map(_asset_profile_name)
 
     effective_dates = orders["effective_bkk_dt"].dropna().dt.date
     default_end = effective_dates.max() if not effective_dates.empty else datetime.now().date()
@@ -2091,7 +2121,7 @@ def _render_performance(db_path: Path) -> None:
     with c3:
         closed_only = st.checkbox(t("perf_closed_only"), value=False)
 
-    c4, c5, c6, c7 = st.columns(4)
+    c4, c5, c6, c7, c8 = st.columns(5)
     with c4:
         status_opts = sorted(orders["status"].dropna().astype(str).unique().tolist())
         f_status = st.multiselect(t("perf_status"), options=status_opts, default=status_opts)
@@ -2104,6 +2134,9 @@ def _render_performance(db_path: Path) -> None:
     with c7:
         reason_opts = sorted(orders["reason"].fillna("").astype(str).unique().tolist())
         f_reason = st.multiselect(t("perf_reason"), options=reason_opts, default=reason_opts)
+    with c8:
+        profile_opts = sorted(orders["asset_profile"].dropna().astype(str).unique().tolist())
+        f_profiles = st.multiselect(t("perf_asset_profile"), options=profile_opts, default=profile_opts)
 
     view = orders.copy()
     quick_end = default_end
@@ -2130,6 +2163,8 @@ def _render_performance(db_path: Path) -> None:
         view = view[view["category"].astype(str).isin(f_cat)]
     if f_reason:
         view = view[view["reason"].fillna("").astype(str).isin(f_reason)]
+    if f_profiles:
+        view = view[view["asset_profile"].astype(str).isin(f_profiles)]
     if closed_only:
         view = view[view["status"] == "closed"]
 
@@ -2161,8 +2196,50 @@ def _render_performance(db_path: Path) -> None:
         st.caption(t("perf_pnl_curve"))
         st.line_chart(curve[["closed_at_utc_dt", "cum_pnl"]].set_index("closed_at_utc_dt"), width="stretch", height=220)
 
+        profile_summary = (
+            closed.groupby("asset_profile", dropna=False)
+            .agg(
+                trades=("id", "count"),
+                net_pnl=("pnl", "sum"),
+                avg_pnl=("pnl", "mean"),
+                wins=("pnl", lambda s: int((s > 0).sum())),
+                losses=("pnl", lambda s: int((s < 0).sum())),
+            )
+            .reset_index()
+        )
+        profile_summary["win_rate_pct"] = (
+            profile_summary["wins"] / (profile_summary["wins"] + profile_summary["losses"]).replace(0, pd.NA) * 100.0
+        ).fillna(0.0)
+        profile_summary["net_pnl"] = profile_summary["net_pnl"].round(2)
+        profile_summary["avg_pnl"] = profile_summary["avg_pnl"].round(2)
+        profile_summary["win_rate_pct"] = profile_summary["win_rate_pct"].round(2)
+        st.caption(t("perf_profile_summary"))
+        st.dataframe(profile_summary, width="stretch", height=200)
+
+        symbol_summary = (
+            closed.groupby(["asset_profile", "symbol"], dropna=False)
+            .agg(
+                trades=("id", "count"),
+                net_pnl=("pnl", "sum"),
+                avg_pnl=("pnl", "mean"),
+                wins=("pnl", lambda s: int((s > 0).sum())),
+                losses=("pnl", lambda s: int((s < 0).sum())),
+            )
+            .reset_index()
+            .sort_values(["net_pnl", "trades"], ascending=[False, False])
+        )
+        symbol_summary["win_rate_pct"] = (
+            symbol_summary["wins"] / (symbol_summary["wins"] + symbol_summary["losses"]).replace(0, pd.NA) * 100.0
+        ).fillna(0.0)
+        symbol_summary["net_pnl"] = symbol_summary["net_pnl"].round(2)
+        symbol_summary["avg_pnl"] = symbol_summary["avg_pnl"].round(2)
+        symbol_summary["win_rate_pct"] = symbol_summary["win_rate_pct"].round(2)
+        st.caption(t("perf_symbol_summary"))
+        st.dataframe(symbol_summary, width="stretch", height=220)
+
     show_cols = [
         "id",
+        "asset_profile",
         "timestamp_th",
         "timestamp",
         "symbol",
@@ -2227,7 +2304,7 @@ def _render_portfolio() -> None:
                 {
                     "ticket": int(getattr(p, "ticket", 0) or 0),
                     "symbol": str(getattr(p, "symbol", "")),
-                    "type": int(getattr(p, "type", 0) or 0),
+                    "direction": _mt5_direction_label(getattr(p, "type", 0)),
                     "volume": float(getattr(p, "volume", 0.0) or 0.0),
                     "price_open": float(getattr(p, "price_open", 0.0) or 0.0),
                     "sl": float(getattr(p, "sl", 0.0) or 0.0),
@@ -3122,23 +3199,42 @@ def main() -> None:
 
     db_path = _load_env_db_path()
     _render_controls(db_path)
-
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
-        [t("tab_dashboard"), t("tab_performance"), t("tab_portfolio"), t("tab_health"), t("tab_config"), t("tab_guide"), t("tab_deploy")]
+    tab_options = [
+        ("dashboard", t("tab_dashboard")),
+        ("performance", t("tab_performance")),
+        ("portfolio", t("tab_portfolio")),
+        ("health", t("tab_health")),
+        ("config", t("tab_config")),
+        ("guide", t("tab_guide")),
+        ("deploy", t("tab_deploy")),
+    ]
+    tab_labels = [label for _, label in tab_options]
+    current_key = str(st.session_state.get("active_tab", "dashboard"))
+    current_index = next((i for i, (key, _) in enumerate(tab_options) if key == current_key), 0)
+    selected_label = st.radio(
+        "Navigation",
+        options=tab_labels,
+        index=current_index,
+        horizontal=True,
+        label_visibility="collapsed",
     )
-    with tab1:
+    selected_key = next(key for key, label in tab_options if label == selected_label)
+    st.session_state["active_tab"] = selected_key
+    _persist_ui_state_to_query()
+
+    if selected_key == "dashboard":
         _render_dashboard(db_path)
-    with tab2:
+    elif selected_key == "performance":
         _render_performance(db_path)
-    with tab3:
+    elif selected_key == "portfolio":
         _render_portfolio()
-    with tab4:
+    elif selected_key == "health":
         _render_system_health(db_path)
-    with tab5:
+    elif selected_key == "config":
         _render_config_editor()
-    with tab6:
+    elif selected_key == "guide":
         _render_guide()
-    with tab7:
+    elif selected_key == "deploy":
         _render_deploy_wizard()
 
 
