@@ -45,6 +45,7 @@ TXT = {
         "exec_cat_now": "ส่งคำสั่งขั้นต่ำ",
         "filter_mode_now": "โหมดคัดกรอง",
         "db": "ฐานข้อมูล",
+        "db_fallback": "กำลังแสดงข้อมูลย้อนหลังจากฐานข้อมูลเดิม",
         "scan_once": "สแกน 1 รอบ",
         "sync": "ซิงก์ออเดอร์",
         "start_daemon": "เริ่มเดมอน",
@@ -71,6 +72,9 @@ TXT = {
         "events": "เหตุการณ์สแกนล่าสุด",
         "manual_orders": "ออเดอร์ที่เปิด/ปิดเอง (MT5)",
         "manual_open_positions": "ออเดอร์เปิดเอง (ยังถืออยู่)",
+        "bot_open_positions": "ออเดอร์บอทที่เปิดอยู่",
+        "bot_open_positions_live": "ออเดอร์บอทที่เปิดอยู่ (MT5 สด)",
+        "bot_open_none": "ไม่มีออเดอร์บอทที่เปิดอยู่",
         "manual_closed_deals": "ออเดอร์ปิดเองล่าสุด",
         "manual_none_open": "ไม่พบออเดอร์เปิดเอง",
         "manual_none_closed": "ไม่พบออเดอร์ปิดเองล่าสุด",
@@ -194,6 +198,12 @@ TXT = {
         "health_mt5_test": "ทดสอบ MT5",
         "health_mt5_ok": "เชื่อม MT5 สำเร็จ",
         "health_mt5_fail": "เชื่อม MT5 ไม่สำเร็จ",
+        "health_import_mt5_history": "นำเข้าประวัติ MT5",
+        "health_import_mt5_days": "นำเข้าย้อนหลัง (วัน)",
+        "health_import_mt5_done": "นำเข้าประวัติ MT5 เรียบร้อย",
+        "health_import_mt5_fail": "นำเข้าประวัติ MT5 ไม่สำเร็จ",
+        "dashboard_import_hint": "พบประวัติบอทใน MT5 แต่ฐานข้อมูลบัญชีนี้ยังว่าง",
+        "dashboard_import_done": "นำเข้าประวัติจากหน้าแดชบอร์ดเรียบร้อย",
         "health_support_bundle": "ดาวน์โหลด Support Bundle",
         "health_support_preview": "สรุปข้อมูลสำหรับตรวจปัญหา",
         "health_version": "เวอร์ชันระบบ",
@@ -218,6 +228,7 @@ TXT = {
         "exec_cat_now": "Min Execute Category",
         "filter_mode_now": "Filter Mode",
         "db": "Database",
+        "db_fallback": "Showing historical data from legacy database",
         "scan_once": "Run Scan Once",
         "sync": "Run Sync",
         "start_daemon": "Start Daemon",
@@ -244,6 +255,9 @@ TXT = {
         "events": "Recent Scan Events",
         "manual_orders": "Manual Orders (MT5)",
         "manual_open_positions": "Manual Open Positions",
+        "bot_open_positions": "Bot Open Positions",
+        "bot_open_positions_live": "Bot Open Positions (Live MT5)",
+        "bot_open_none": "No open bot positions",
         "manual_closed_deals": "Recent Manual Closed Deals",
         "manual_none_open": "No manual open positions",
         "manual_none_closed": "No recent manual closed deals",
@@ -367,6 +381,12 @@ TXT = {
         "health_mt5_test": "Test MT5",
         "health_mt5_ok": "MT5 connection successful",
         "health_mt5_fail": "MT5 connection failed",
+        "health_import_mt5_history": "Import MT5 History",
+        "health_import_mt5_days": "Import lookback (days)",
+        "health_import_mt5_done": "MT5 history imported",
+        "health_import_mt5_fail": "Failed to import MT5 history",
+        "dashboard_import_hint": "Bot history exists in MT5 but this account database is still empty",
+        "dashboard_import_done": "Dashboard import completed",
         "health_support_bundle": "Download Support Bundle",
         "health_support_preview": "Support diagnostics summary",
         "health_version": "System Version",
@@ -844,6 +864,27 @@ def _load_env_db_path() -> Path:
     return (ROOT / env.get("DB_PATH", "signals.db")).resolve()
 
 
+def _db_orders_count(db_path: Path) -> int:
+    if not db_path.exists():
+        return 0
+    try:
+        with _db_connect(db_path) as conn:
+            row = conn.execute("SELECT COUNT(*) AS c FROM orders").fetchone()
+            return int(row["c"] or 0) if row else 0
+    except sqlite3.Error:
+        return 0
+
+
+def _resolve_display_db_path(configured_db_path: Path) -> tuple[Path, bool]:
+    """Return the best DB for read-only dashboard display, with legacy fallback."""
+    if _db_orders_count(configured_db_path) > 0:
+        return configured_db_path, False
+    legacy_db = (ROOT / "signals.db").resolve()
+    if legacy_db != configured_db_path and _db_orders_count(legacy_db) > 0:
+        return legacy_db, True
+    return configured_db_path, False
+
+
 def _db_connect(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -1175,9 +1216,10 @@ def _daemon_status() -> str:
     return "Stopped (stale pid file)"
 
 
-def _metrics(db_path: Path) -> dict[str, float]:
+def _metrics(db_path: Path, live_open_count: int | None = None) -> dict[str, float]:
     if not db_path.exists():
-        return {"open": 0, "sent": 0, "closed": 0, "failed": 0, "today_pnl": 0.0}
+        open_count = int(live_open_count or 0)
+        return {"open": open_count, "sent": open_count, "closed": 0, "failed": 0, "today_pnl": 0.0}
     df = _query_df(
         db_path,
         """
@@ -1190,11 +1232,13 @@ def _metrics(db_path: Path) -> dict[str, float]:
         """,
     )
     if df.empty:
-        return {"open": 0, "sent": 0, "closed": 0, "failed": 0, "today_pnl": 0.0}
+        open_count = int(live_open_count or 0)
+        return {"open": open_count, "sent": open_count, "closed": 0, "failed": 0, "today_pnl": 0.0}
     r = df.iloc[0]
     sent_count = int(r.get("sent_count", 0) or 0)
+    open_count = int(live_open_count) if live_open_count is not None else sent_count
     return {
-        "open": sent_count,
+        "open": open_count,
         "sent": sent_count,
         "closed": int(r.get("closed_count", 0) or 0),
         "failed": int(r.get("failed_count", 0) or 0),
@@ -1294,6 +1338,277 @@ def _fetch_manual_mt5_activity(env: dict[str, str], lookback_days: int = 7, limi
             pass
 
 
+def _fetch_bot_mt5_positions(env: dict[str, str], limit: int = 50) -> tuple[pd.DataFrame, str | None]:
+    """Fetch live open positions for this bot directly from MT5 using MAGIC_NUMBER."""
+    try:
+        import MetaTrader5 as mt5
+    except Exception as exc:
+        return pd.DataFrame(), str(exc)
+
+    kwargs = {}
+    if env.get("MT5_PATH"):
+        kwargs["path"] = env["MT5_PATH"]
+
+    if not mt5.initialize(**kwargs):
+        code, msg = mt5.last_error()
+        return pd.DataFrame(), f"{code} {msg}"
+
+    try:
+        login = env.get("MT5_LOGIN")
+        password = env.get("MT5_PASSWORD")
+        server = env.get("MT5_SERVER")
+        if login and password and server:
+            mt5.login(login=int(login), password=password, server=server)
+
+        bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
+        positions = mt5.positions_get() or []
+        rows: list[dict[str, object]] = []
+        for p in positions:
+            magic = int(getattr(p, "magic", 0) or 0)
+            if magic != bot_magic:
+                continue
+            p_type = int(getattr(p, "type", -1) or -1)
+            direction = "BUY" if p_type == 0 else ("SELL" if p_type == 1 else str(p_type))
+            rows.append(
+                {
+                    "ticket": int(getattr(p, "ticket", 0) or 0),
+                    "position_id": int(getattr(p, "identifier", 0) or 0),
+                    "symbol": str(getattr(p, "symbol", "")),
+                    "direction": direction,
+                    "volume": float(getattr(p, "volume", 0.0) or 0.0),
+                    "price_open": float(getattr(p, "price_open", 0.0) or 0.0),
+                    "price_now": float(getattr(p, "price_current", 0.0) or 0.0),
+                    "sl": float(getattr(p, "sl", 0.0) or 0.0),
+                    "tp": float(getattr(p, "tp", 0.0) or 0.0),
+                    "profit": float(getattr(p, "profit", 0.0) or 0.0),
+                    "magic": magic,
+                    "comment": str(getattr(p, "comment", "")),
+                    "timestamp": datetime.fromtimestamp(int(getattr(p, "time", 0) or 0), timezone.utc).isoformat(),
+                }
+            )
+
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df = df.sort_values("ticket", ascending=False).head(max(1, limit))
+        df = _add_thai_time_columns(df, {"timestamp": "timestamp_th"})
+        return df, None
+    except Exception as exc:
+        return pd.DataFrame(), str(exc)
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+
+def _order_exists(db_path: Path, *, mt5_position: int | None = None, mt5_order: int | None = None, status: str | None = None) -> bool:
+    if not db_path.exists():
+        return False
+    clauses: list[str] = []
+    params: list[object] = []
+    if mt5_position and mt5_position > 0:
+        clauses.append("mt5_position = ?")
+        params.append(int(mt5_position))
+    if mt5_order and mt5_order > 0:
+        clauses.append("mt5_order = ?")
+        params.append(int(mt5_order))
+    if not clauses:
+        return False
+    sql = f"SELECT 1 FROM orders WHERE ({' OR '.join(clauses)})"
+    if status:
+        sql += " AND status = ?"
+        params.append(status)
+    sql += " LIMIT 1"
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(sql, params).fetchone()
+    return row is not None
+
+
+def _import_mt5_history_to_db(
+    env: dict[str, str],
+    db_path: Path,
+    *,
+    lookback_days: int = 30,
+) -> tuple[dict[str, int], str | None]:
+    try:
+        import MetaTrader5 as mt5
+    except Exception as exc:
+        return {}, str(exc)
+
+    db = SignalDB(str(db_path))
+    kwargs = {}
+    if env.get("MT5_PATH"):
+        kwargs["path"] = env["MT5_PATH"]
+
+    if not mt5.initialize(**kwargs):
+        code, msg = mt5.last_error()
+        return {}, f"{code} {msg}"
+
+    stats = {"open_imported": 0, "closed_imported": 0, "skipped": 0}
+    try:
+        login = env.get("MT5_LOGIN")
+        password = env.get("MT5_PASSWORD")
+        server = env.get("MT5_SERVER")
+        if login and password and server:
+            ok = mt5.login(login=int(login), password=password, server=server)
+            if not ok:
+                code, msg = mt5.last_error()
+                return {}, f"{code} {msg}"
+
+        bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
+
+        positions = mt5.positions_get() or []
+        for p in positions:
+            magic = int(getattr(p, "magic", 0) or 0)
+            if magic != bot_magic:
+                continue
+            ticket = int(getattr(p, "ticket", 0) or 0)
+            if _order_exists(db_path, mt5_position=ticket, mt5_order=ticket):
+                stats["skipped"] += 1
+                continue
+            p_type = int(getattr(p, "type", -1) or -1)
+            direction = "BUY" if p_type == 0 else "SELL"
+            opened_at = datetime.fromtimestamp(int(getattr(p, "time", 0) or 0), timezone.utc).isoformat()
+            db.log_order(
+                timestamp=opened_at,
+                symbol=str(getattr(p, "symbol", "")),
+                normalized_symbol=str(getattr(p, "symbol", "")),
+                direction=direction,
+                category="imported",
+                score=0.0,
+                entry_price=float(getattr(p, "price_open", 0.0) or 0.0),
+                stop_loss=float(getattr(p, "sl", 0.0) or 0.0) or None,
+                take_profit=float(getattr(p, "tp", 0.0) or 0.0) or None,
+                volume=float(getattr(p, "volume", 0.0) or 0.0) or None,
+                risk_amount=None,
+                status="sent",
+                reason="imported_open",
+                mt5_order=ticket,
+                mt5_position=ticket,
+                comment="imported_from_mt5_open",
+            )
+            stats["open_imported"] += 1
+
+        time_to = datetime.now(timezone.utc)
+        time_from = time_to - timedelta(days=max(1, lookback_days))
+        deals = mt5.history_deals_get(time_from, time_to) or []
+        grouped: dict[int, list[object]] = {}
+        for d in deals:
+            magic = int(getattr(d, "magic", 0) or 0)
+            if magic != bot_magic:
+                continue
+            position_id = int(getattr(d, "position_id", 0) or 0)
+            if position_id <= 0:
+                continue
+            grouped.setdefault(position_id, []).append(d)
+
+        for position_id, group in grouped.items():
+            if _order_exists(db_path, mt5_position=position_id, status="closed"):
+                stats["skipped"] += 1
+                continue
+            in_deals: list[object] = []
+            out_deals: list[object] = []
+            for d in group:
+                entry = int(getattr(d, "entry", -1) or -1)
+                d_type = int(getattr(d, "type", -1) or -1)
+                profit = float(getattr(d, "profit", 0.0) or 0.0)
+                # Exness can expose opening deals as entry=-1 with BUY/SELL type.
+                if entry == 0 or (entry == -1 and d_type in (0, 1)):
+                    in_deals.append(d)
+                elif entry in (1, 3) or d_type not in (0, 1) or abs(profit) > 1e-12:
+                    out_deals.append(d)
+            if not in_deals or not out_deals:
+                stats["skipped"] += 1
+                continue
+
+            in_deals.sort(key=lambda d: int(getattr(d, "time", 0) or 0))
+            out_deals.sort(key=lambda d: int(getattr(d, "time", 0) or 0))
+            first_in = in_deals[0]
+            last_out = out_deals[-1]
+            d_type = int(getattr(first_in, "type", -1) or -1)
+            direction = "BUY" if d_type == 0 else "SELL"
+            opened_at = datetime.fromtimestamp(int(getattr(first_in, "time", 0) or 0), timezone.utc).isoformat()
+            closed_at = datetime.fromtimestamp(int(getattr(last_out, "time", 0) or 0), timezone.utc).isoformat()
+            total_pnl = sum(
+                float(getattr(d, "profit", 0.0) or 0.0)
+                + float(getattr(d, "commission", 0.0) or 0.0)
+                + float(getattr(d, "swap", 0.0) or 0.0)
+                for d in out_deals
+            )
+            db.log_order(
+                timestamp=opened_at,
+                symbol=str(getattr(first_in, "symbol", "")),
+                normalized_symbol=str(getattr(first_in, "symbol", "")),
+                direction=direction,
+                category="imported",
+                score=0.0,
+                entry_price=float(getattr(first_in, "price", 0.0) or 0.0),
+                stop_loss=None,
+                take_profit=None,
+                volume=float(getattr(first_in, "volume", 0.0) or 0.0) or None,
+                risk_amount=None,
+                status="closed",
+                reason="imported_history",
+                mt5_order=int(getattr(last_out, "order", 0) or 0) or position_id,
+                mt5_position=position_id,
+                comment="imported_from_mt5_history",
+                pnl=round(total_pnl, 2),
+                closed_at=closed_at,
+            )
+            stats["closed_imported"] += 1
+
+        return stats, None
+    except Exception as exc:
+        return stats, str(exc)
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+
+def _mt5_bot_activity_summary(env: dict[str, str], *, lookback_days: int = 30) -> tuple[dict[str, int], str | None]:
+    try:
+        import MetaTrader5 as mt5
+    except Exception as exc:
+        return {}, str(exc)
+
+    kwargs = {}
+    if env.get("MT5_PATH"):
+        kwargs["path"] = env["MT5_PATH"]
+    if not mt5.initialize(**kwargs):
+        code, msg = mt5.last_error()
+        return {}, f"{code} {msg}"
+    try:
+        login = env.get("MT5_LOGIN")
+        password = env.get("MT5_PASSWORD")
+        server = env.get("MT5_SERVER")
+        if login and password and server:
+            ok = mt5.login(login=int(login), password=password, server=server)
+            if not ok:
+                code, msg = mt5.last_error()
+                return {}, f"{code} {msg}"
+
+        bot_magic = _parse_int_env(env, "MAGIC_NUMBER", 20260312)
+        open_positions = [p for p in (mt5.positions_get() or []) if int(getattr(p, "magic", 0) or 0) == bot_magic]
+        time_to = datetime.now(timezone.utc)
+        time_from = time_to - timedelta(days=max(1, lookback_days))
+        deals = mt5.history_deals_get(time_from, time_to) or []
+        closed_positions = {
+            int(getattr(d, "position_id", 0) or 0)
+            for d in deals
+            if int(getattr(d, "magic", 0) or 0) == bot_magic and int(getattr(d, "entry", -1) or -1) in (1, 3)
+        }
+        return {"open": len(open_positions), "closed": len([x for x in closed_positions if x > 0])}, None
+    except Exception as exc:
+        return {}, str(exc)
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+
 def _render_controls(db_path: Path) -> None:
     st.sidebar.header(t("controls"))
     st.sidebar.caption(f"{t('db')}: {db_path}")
@@ -1380,6 +1695,7 @@ def _render_controls(db_path: Path) -> None:
 def _render_dashboard(db_path: Path) -> None:
     st.subheader(t("overview"))
     env = _load_env_map()
+    bot_open_df, bot_open_err = _fetch_bot_mt5_positions(env, limit=20)
     st.caption(
         f"{t('active_mode')}: "
         f"{t('profile_now')}=`{env.get('SIGNAL_PROFILE', 'custom')}` | "
@@ -1387,7 +1703,8 @@ def _render_dashboard(db_path: Path) -> None:
         f"{t('alert_cat_now')}=`{env.get('MIN_ALERT_CATEGORY', 'alert')}` | "
         f"{t('exec_cat_now')}=`{env.get('MIN_EXECUTE_CATEGORY', 'strong')}`"
     )
-    m = _metrics(db_path)
+    live_open_count = None if bot_open_err else len(bot_open_df.index)
+    m = _metrics(db_path, live_open_count=live_open_count)
     pnl_value = float(m["today_pnl"])
     pnl_text = f"{pnl_value:+.2f}" if abs(pnl_value) > 1e-12 else "0.00"
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -1396,6 +1713,27 @@ def _render_dashboard(db_path: Path) -> None:
     c3.metric(t("closed"), m["closed"])
     c4.metric(t("failed"), m["failed"])
     c5.metric(t("today_pnl"), pnl_text)
+
+    total_orders = int(m["sent"]) + int(m["closed"]) + int(m["failed"])
+    if total_orders == 0:
+        mt5_summary, mt5_summary_err = _mt5_bot_activity_summary(env, lookback_days=30)
+        if not mt5_summary_err and (mt5_summary.get("open", 0) > 0 or mt5_summary.get("closed", 0) > 0):
+            st.warning(
+                f"{t('dashboard_import_hint')}: "
+                f"open={mt5_summary.get('open', 0)} closed={mt5_summary.get('closed', 0)}"
+            )
+            if st.button(t("health_import_mt5_history"), key="dashboard_import_mt5_history", width="stretch"):
+                stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=30)
+                if error:
+                    st.error(f"{t('health_import_mt5_fail')}: {error}")
+                else:
+                    st.success(
+                        f"{t('dashboard_import_done')}: "
+                        f"open={stats.get('open_imported', 0)} "
+                        f"closed={stats.get('closed_imported', 0)} "
+                        f"skipped={stats.get('skipped', 0)}"
+                    )
+                    st.rerun()
 
     st.caption(t("sizing_title"))
     sizing_mode = t("sizing_dynamic") if _parse_bool_env(env, "USE_MT5_BALANCE_FOR_SIZING", True) else t("sizing_static")
@@ -1410,6 +1748,16 @@ def _render_dashboard(db_path: Path) -> None:
         LIMIT 1
         """,
     )
+    if last_sent.empty:
+        last_sent = _query_df(
+            db_path,
+            """
+            SELECT symbol, normalized_symbol, volume, risk_amount, timestamp, closed_at, status
+            FROM orders
+            ORDER BY COALESCE(closed_at, timestamp) DESC, id DESC
+            LIMIT 1
+            """,
+        )
     s1, s2, s3, s4 = st.columns(4)
     s1.metric(t("sizing_mode"), f"{sizing_mode} ({sizing_base})")
     if last_sent.empty:
@@ -1424,6 +1772,31 @@ def _render_dashboard(db_path: Path) -> None:
         s2.metric(t("sizing_last_symbol"), symbol_text)
         s3.metric(t("sizing_last_risk"), risk_text)
         s4.metric(t("sizing_last_volume"), lot_text)
+
+    st.caption(t("bot_open_positions_live"))
+    if bot_open_err:
+        st.warning(f"{t('mt5_error')}: {bot_open_err}")
+    elif bot_open_df.empty:
+        st.info(t("bot_open_none"))
+    else:
+        open_cols = [
+            c
+            for c in [
+                "ticket",
+                "symbol",
+                "direction",
+                "volume",
+                "price_open",
+                "price_now",
+                "sl",
+                "tp",
+                "profit",
+                "timestamp_th",
+                "timestamp",
+            ]
+            if c in bot_open_df.columns
+        ]
+        st.dataframe(bot_open_df[open_cols], width="stretch", height=220)
 
     st.subheader(t("cleanup"))
     cc1, cc2, cc3 = st.columns(3)
@@ -1816,7 +2189,9 @@ def _render_system_health(db_path: Path) -> None:
     v2.metric(t("health_git_commit"), git_info["commit"])
     v3.metric(t("health_git_commit_time"), git_info["commit_time"])
 
-    m1, m2 = st.columns(2)
+    import_days = st.number_input(t("health_import_mt5_days"), min_value=1, max_value=365, value=30, step=1)
+
+    m1, m2, m3 = st.columns(3)
     with m1:
         if st.button(t("health_mt5_test"), width="stretch"):
             ok, payload = _test_mt5_connection(env)
@@ -1828,6 +2203,21 @@ def _render_system_health(db_path: Path) -> None:
                 db.log_scan_event("SYSTEM", "ERROR", "health_mt5_test_fail", payload)
                 st.error(f"{t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
     with m2:
+        if st.button(t("health_import_mt5_history"), width="stretch"):
+            stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=int(import_days))
+            if error:
+                db.log_scan_event("SYSTEM", "ERROR", "health_import_mt5_history_fail", {"error": error, "days": int(import_days), **stats})
+                st.error(f"{t('health_import_mt5_fail')}: {error}")
+            else:
+                db.log_scan_event("SYSTEM", "INFO", "health_import_mt5_history_done", {"days": int(import_days), **stats})
+                st.success(
+                    f"{t('health_import_mt5_done')}: "
+                    f"open={stats.get('open_imported', 0)} "
+                    f"closed={stats.get('closed_imported', 0)} "
+                    f"skipped={stats.get('skipped', 0)}"
+                )
+                st.json(stats)
+    with m3:
         bundle_bytes, bundle_name, bundle_summary = _build_support_bundle(env, db_path)
         downloaded = st.download_button(
             t("health_support_bundle"),
@@ -2301,10 +2691,16 @@ def _render_guide() -> None:
 
 #### 1) เปิดระบบประจำวัน
 ```powershell
-py main.py --mode reset_loss_guard
-py main.py --mode sync
-py main.py --mode scan --once
+C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode reset_loss_guard
+C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode sync
+C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode scan --once
 ```
+
+หรือใช้ไฟล์คลิกได้:
+- `Reset-Loss-Guard.bat`
+- `Sync-Orders.bat`
+- `Scan-Once.bat`
+- `Start-All.bat`
 
 #### 2) โหมดใช้งาน
 - `scan --once`: สแกน 1 รอบ
@@ -2339,8 +2735,8 @@ py main.py --mode scan --once
 
 #### 7) คำสั่งตรวจสอบสำคัญ
 ```powershell
-py -m pytest -q
-py -m sqlite3 signals.db "SELECT id,timestamp,symbol,status,reason,score,category FROM orders ORDER BY id DESC LIMIT 30;"
+C:/pytrade/.venv/Scripts/python.exe -m pytest -q
+C:/pytrade/.venv/Scripts/python.exe -m sqlite3 signals.db "SELECT id,timestamp,symbol,status,reason,score,category FROM orders ORDER BY id DESC LIMIT 30;"
 ```
 
 #### 8) ความปลอดภัย
@@ -2356,10 +2752,16 @@ py -m sqlite3 signals.db "SELECT id,timestamp,symbol,status,reason,score,categor
 
 #### 1) Daily startup
 ```powershell
-py main.py --mode reset_loss_guard
-py main.py --mode sync
-py main.py --mode scan --once
+C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode reset_loss_guard
+C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode sync
+C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode scan --once
 ```
+
+Or use the clickable launchers:
+- `Reset-Loss-Guard.bat`
+- `Sync-Orders.bat`
+- `Scan-Once.bat`
+- `Start-All.bat`
 
 #### 2) Main modes
 - `scan --once`: run one scan cycle
@@ -2394,8 +2796,8 @@ py main.py --mode scan --once
 
 #### 7) Useful commands
 ```powershell
-py -m pytest -q
-py -m sqlite3 signals.db "SELECT id,timestamp,symbol,status,reason,score,category FROM orders ORDER BY id DESC LIMIT 30;"
+C:/pytrade/.venv/Scripts/python.exe -m pytest -q
+C:/pytrade/.venv/Scripts/python.exe -m sqlite3 signals.db "SELECT id,timestamp,symbol,status,reason,score,category FROM orders ORDER BY id DESC LIMIT 30;"
 ```
 
 #### 8) Safety notes

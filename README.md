@@ -39,17 +39,17 @@ copy .env.example .env
 ## รันระบบ
 สแกน 1 รอบ:
 ```powershell
-py main.py --mode scan --once
+C:\pytrade\.venv\Scripts\python.exe C:\pytrade\main.py --mode scan --once
 ```
 
 ซิงก์สถานะออเดอร์:
 ```powershell
-py main.py --mode sync
+C:\pytrade\.venv\Scripts\python.exe C:\pytrade\main.py --mode sync
 ```
 
 เดมอนต่อเนื่อง:
 ```powershell
-py main.py --mode daemon
+C:\pytrade\.venv\Scripts\python.exe C:\pytrade\main.py --mode daemon
 ```
 
 แดชบอร์ด:
@@ -77,6 +77,8 @@ py -m streamlit run streamlit_app.py
 - `Update-From-Git.bat`
 - `Scan-Once.bat`
 - `Sync-Orders.bat`
+- `PyTrade Dashboard.url` เปิดหน้า Dashboard ตรงไปที่เบราว์เซอร์
+- `Create-Desktop-Shortcuts.bat` สร้าง shortcut บน Desktop ให้อัตโนมัติ
 - `Reset-Loss-Guard.bat`
 
 ## ไฟล์ช่วยใช้งานเร็ว (.bat)
@@ -86,6 +88,8 @@ py -m streamlit run streamlit_app.py
 - `Open-Logs.bat` เปิดโฟลเดอร์ logs และไฟล์ log ล่าสุด
 - `Status-Check.bat` เช็ก venv, `.env`, pid, port, process แบบเร็ว
 - `Update-From-Git.bat` ดึงโค้ดล่าสุดจาก Git, ติดตั้ง dependencies, แล้วรีสตาร์ทระบบ
+- `PyTrade Dashboard.url` ใช้เปิดหน้าเว็บ Dashboard ทันที
+- `Create-Desktop-Shortcuts.bat` ใช้สร้าง shortcut `PyTrade Dashboard`, `PyTrade Start All`, `PyTrade Status Check` บน Desktop
 
 ## ติดตั้งแบบรันถาวร (Auto Start)
 ใช้สคริปต์ใน `scripts/`:
@@ -255,6 +259,7 @@ ULTRA_STACK_EXTRA_SLOTS=2
 ## คู่มือแยก (ภาษาไทย)
 - คู่มือติดตั้ง: `docs/INSTALL_WINDOWS_TH.md`
 - คู่มือการใช้งาน: `docs/USER_GUIDE_TH.md`
+
 
 
 

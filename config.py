@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -96,6 +97,129 @@ PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "alert_threshold": 85,
         "strong_alert_threshold": 90,
         "premium_alert_threshold": 93,
+    },
+}
+
+ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
+    "default": {
+        "adx_minimum": None,
+        "entry_zone_max_atr": None,
+        "m5_min_triggers": None,
+        "rsi_buy_low": None,
+        "rsi_buy_high": None,
+        "rsi_sell_low": None,
+        "rsi_sell_high": None,
+        "volume_spike_ratio": 1.20,
+        "setup_pullback_atr": 0.80,
+        "atr_ratio_pref_low": 0.70,
+        "atr_ratio_pref_high": 1.80,
+        "atr_ratio_ok_low": 0.50,
+        "atr_ratio_ok_high": 2.20,
+        "stoch_buy_max": 30.0,
+        "stoch_sell_min": 70.0,
+        "sl_atr_multiplier": None,
+        "target_rr": None,
+        "risk_pct_multiplier": 1.00,
+    },
+    "crypto_major": {
+        "adx_minimum": 14.0,
+        "entry_zone_max_atr": 2.60,
+        "m5_min_triggers": 1,
+        "rsi_buy_low": 48.0,
+        "rsi_buy_high": 68.0,
+        "rsi_sell_low": 32.0,
+        "rsi_sell_high": 52.0,
+        "volume_spike_ratio": 1.15,
+        "setup_pullback_atr": 1.00,
+        "atr_ratio_pref_low": 0.65,
+        "atr_ratio_pref_high": 2.10,
+        "atr_ratio_ok_low": 0.45,
+        "atr_ratio_ok_high": 2.50,
+        "stoch_buy_max": 35.0,
+        "stoch_sell_min": 65.0,
+        "sl_atr_multiplier": 1.60,
+        "target_rr": 1.90,
+        "risk_pct_multiplier": 0.90,
+    },
+    "crypto_alt": {
+        "adx_minimum": 16.0,
+        "entry_zone_max_atr": 2.20,
+        "m5_min_triggers": 2,
+        "rsi_buy_low": 50.0,
+        "rsi_buy_high": 66.0,
+        "rsi_sell_low": 34.0,
+        "rsi_sell_high": 50.0,
+        "volume_spike_ratio": 1.25,
+        "setup_pullback_atr": 0.90,
+        "atr_ratio_pref_low": 0.75,
+        "atr_ratio_pref_high": 1.90,
+        "atr_ratio_ok_low": 0.55,
+        "atr_ratio_ok_high": 2.30,
+        "stoch_buy_max": 30.0,
+        "stoch_sell_min": 70.0,
+        "sl_atr_multiplier": 1.80,
+        "target_rr": 2.00,
+        "risk_pct_multiplier": 0.75,
+    },
+    "metal": {
+        "adx_minimum": 16.0,
+        "entry_zone_max_atr": 2.00,
+        "m5_min_triggers": 2,
+        "rsi_buy_low": 46.0,
+        "rsi_buy_high": 62.0,
+        "rsi_sell_low": 38.0,
+        "rsi_sell_high": 54.0,
+        "volume_spike_ratio": 1.10,
+        "setup_pullback_atr": 0.85,
+        "atr_ratio_pref_low": 0.70,
+        "atr_ratio_pref_high": 1.90,
+        "atr_ratio_ok_low": 0.50,
+        "atr_ratio_ok_high": 2.30,
+        "stoch_buy_max": 32.0,
+        "stoch_sell_min": 68.0,
+        "sl_atr_multiplier": 1.70,
+        "target_rr": 2.00,
+        "risk_pct_multiplier": 0.80,
+    },
+    "fx_major": {
+        "adx_minimum": 14.0,
+        "entry_zone_max_atr": 1.60,
+        "m5_min_triggers": 2,
+        "rsi_buy_low": 47.0,
+        "rsi_buy_high": 60.0,
+        "rsi_sell_low": 40.0,
+        "rsi_sell_high": 53.0,
+        "volume_spike_ratio": 1.05,
+        "setup_pullback_atr": 0.65,
+        "atr_ratio_pref_low": 0.80,
+        "atr_ratio_pref_high": 1.50,
+        "atr_ratio_ok_low": 0.60,
+        "atr_ratio_ok_high": 1.90,
+        "stoch_buy_max": 28.0,
+        "stoch_sell_min": 72.0,
+        "sl_atr_multiplier": 1.30,
+        "target_rr": 1.60,
+        "risk_pct_multiplier": 1.00,
+    },
+    "energy": {
+        "adx_minimum": 18.0,
+        "entry_zone_max_atr": 2.40,
+        "m5_min_triggers": 2,
+        "rsi_buy_low": 48.0,
+        "rsi_buy_high": 64.0,
+        "rsi_sell_low": 36.0,
+        "rsi_sell_high": 52.0,
+        "volume_spike_ratio": 1.15,
+        "setup_pullback_atr": 0.95,
+        "atr_ratio_pref_low": 0.75,
+        "atr_ratio_pref_high": 2.00,
+        "atr_ratio_ok_low": 0.55,
+        "atr_ratio_ok_high": 2.40,
+        "stoch_buy_max": 35.0,
+        "stoch_sell_min": 65.0,
+        "sl_atr_multiplier": 1.90,
+        "target_rr": 2.10,
+        "risk_pct_multiplier": 0.70,
     },
 }
 
@@ -241,6 +365,62 @@ class Config:
             return
         for key, value in preset.items():
             setattr(self, key, value)
+
+    @staticmethod
+    def _symbol_key(symbol: str) -> str:
+        return re.sub(r"[^A-Z0-9]", "", (symbol or "").upper())
+
+    def asset_profile_name(self, symbol: str) -> str:
+        key = self._symbol_key(symbol)
+        if key.startswith(("BTCUSD", "ETHUSD")):
+            return "crypto_major"
+        if key.startswith(
+            (
+                "SOLUSD",
+                "BNBUSD",
+                "XRPUSD",
+                "ADAUSD",
+                "DOGEUSD",
+                "LTCUSD",
+                "BCHUSD",
+                "LINKUSD",
+                "MATICUSD",
+                "AVAXUSD",
+                "DOTUSD",
+                "TRXUSD",
+                "UNIUSD",
+                "ATOMUSD",
+            )
+        ):
+            return "crypto_alt"
+        if key.startswith(("XAUUSD", "XAGUSD")):
+            return "metal"
+        if key.startswith(("USOIL", "UKOIL", "XBRUSD", "XTIUSD", "BRENT", "WTI", "NATGAS", "NGAS")):
+            return "energy"
+        if re.match(r"^(EUR|GBP|USD|AUD|NZD|CAD|CHF|JPY)[A-Z]{3}", key):
+            return "fx_major"
+        return "default"
+
+    def asset_profile_for_symbol(self, symbol: str) -> dict[str, Any]:
+        profile_name = self.asset_profile_name(symbol)
+        profile = dict(ASSET_PROFILE_PRESETS["default"])
+        profile.update(ASSET_PROFILE_PRESETS.get(profile_name, {}))
+        profile["asset_profile"] = profile_name
+        profile["adx_minimum"] = float(profile["adx_minimum"] if profile["adx_minimum"] is not None else self.adx_minimum)
+        profile["entry_zone_max_atr"] = float(
+            profile["entry_zone_max_atr"] if profile["entry_zone_max_atr"] is not None else self.entry_zone_max_atr
+        )
+        profile["m5_min_triggers"] = int(profile["m5_min_triggers"] if profile["m5_min_triggers"] is not None else self.m5_min_triggers)
+        profile["rsi_buy_low"] = float(profile["rsi_buy_low"] if profile["rsi_buy_low"] is not None else self.rsi_buy_low)
+        profile["rsi_buy_high"] = float(profile["rsi_buy_high"] if profile["rsi_buy_high"] is not None else self.rsi_buy_high)
+        profile["rsi_sell_low"] = float(profile["rsi_sell_low"] if profile["rsi_sell_low"] is not None else self.rsi_sell_low)
+        profile["rsi_sell_high"] = float(profile["rsi_sell_high"] if profile["rsi_sell_high"] is not None else self.rsi_sell_high)
+        profile["sl_atr_multiplier"] = float(
+            profile["sl_atr_multiplier"] if profile["sl_atr_multiplier"] is not None else self.sl_atr_multiplier
+        )
+        profile["target_rr"] = float(profile["target_rr"] if profile["target_rr"] is not None else self.target_rr)
+        profile["risk_pct_multiplier"] = float(profile.get("risk_pct_multiplier", 1.0) or 1.0)
+        return profile
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
