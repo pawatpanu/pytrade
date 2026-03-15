@@ -5,14 +5,15 @@ from typing import Any
 from config import Config
 
 
-def _score_higher_tf(direction: str, h4_trend: str, h1_trend: str) -> float:
+def _score_higher_tf(direction: str, h4_trend: str, h1_trend: str, profile: dict[str, Any]) -> float:
+    sideway_score = float(profile.get("higher_tf_sideway_score", 10.0))
     if direction == "BUY":
         if h4_trend != "bullish":
             return 0.0
         if h1_trend == "bullish":
             return 20.0
         if h1_trend == "sideway":
-            return 10.0
+            return sideway_score
         return 0.0
 
     if h4_trend != "bearish":
@@ -20,7 +21,7 @@ def _score_higher_tf(direction: str, h4_trend: str, h1_trend: str) -> float:
     if h1_trend == "bearish":
         return 20.0
     if h1_trend == "sideway":
-        return 10.0
+        return sideway_score
     return 0.0
 
 
@@ -76,6 +77,22 @@ def _score_structure(direction: str, structure: str) -> float:
     return 0.0
 
 
+def _score_structure_profile(direction: str, structure: str, profile: dict[str, Any]) -> float:
+    mixed_score = float(profile.get("structure_mixed_score", 5.0))
+    if direction == "BUY":
+        if structure == "bullish":
+            return 10.0
+        if structure == "mixed":
+            return mixed_score
+        return 0.0
+
+    if structure == "bearish":
+        return 10.0
+    if structure == "mixed":
+        return mixed_score
+    return 0.0
+
+
 def _score_setup_quality(direction: str, row: dict[str, float], prev_row: dict[str, float], profile: dict[str, Any]) -> float:
     close = row["close"]
     open_ = row["open"]
@@ -85,8 +102,46 @@ def _score_setup_quality(direction: str, row: dict[str, float], prev_row: dict[s
     ema50 = row["ema50"]
     atr = max(row["atr14"], 1e-8)
     pullback_atr = float(profile["setup_pullback_atr"])
+    style = str(profile.get("setup_style", "pullback"))
+    body = abs(close - open_)
+    candle_range = max(high - low, 1e-8)
+    body_ratio = body / candle_range
+    breakout_body_min = float(profile.get("breakout_body_min_ratio", 0.45))
+    reversal_wick_ratio = float(profile.get("reversal_wick_ratio", 0.45))
 
     near_pullback_zone = min(abs(close - ema20), abs(close - ema50)) <= pullback_atr * atr
+    breakout_up = close > max(prev_row["high"], prev_row["close"]) and body_ratio >= breakout_body_min
+    breakout_down = close < min(prev_row["low"], prev_row["close"]) and body_ratio >= breakout_body_min
+    lower_wick = min(open_, close) - low
+    upper_wick = high - max(open_, close)
+    bullish_reversal = lower_wick / candle_range >= reversal_wick_ratio and close > open_ and close >= ema20
+    bearish_reversal = upper_wick / candle_range >= reversal_wick_ratio and close < open_ and close <= ema20
+
+    if style == "breakout":
+        if direction == "BUY":
+            if breakout_up:
+                return 10.0
+            if near_pullback_zone and close >= ema20:
+                return 6.0
+            return 2.0
+        if breakout_down:
+            return 10.0
+        if near_pullback_zone and close <= ema20:
+            return 6.0
+        return 2.0
+
+    if style == "reversal":
+        if direction == "BUY":
+            if bullish_reversal:
+                return 10.0
+            if near_pullback_zone and close > open_:
+                return 7.0
+            return 2.0
+        if bearish_reversal:
+            return 10.0
+        if near_pullback_zone and close < open_:
+            return 7.0
+        return 2.0
 
     if direction == "BUY":
         bounced = close > open_ and low <= ema20 and close > prev_row["close"]
@@ -152,6 +207,23 @@ def _score_macd(direction: str, row: dict[str, float], prev_row: dict[str, float
     return 1.0
 
 
+def _score_macd_profile(direction: str, row: dict[str, float], prev_row: dict[str, float], profile: dict[str, Any]) -> float:
+    mode = str(profile.get("macd_mode", "cross"))
+    base_score = _score_macd(direction, row, prev_row)
+    if mode == "momentum":
+        if direction == "BUY":
+            if row["macd"] > row["macd_signal"] and row["macd_hist"] > prev_row["macd_hist"]:
+                return max(base_score, 8.0)
+            if row["macd_hist"] > prev_row["macd_hist"]:
+                return max(base_score, 6.0)
+        else:
+            if row["macd"] < row["macd_signal"] and row["macd_hist"] < prev_row["macd_hist"]:
+                return max(base_score, 8.0)
+            if row["macd_hist"] < prev_row["macd_hist"]:
+                return max(base_score, 6.0)
+    return base_score
+
+
 def _score_stoch(direction: str, row: dict[str, float], prev_row: dict[str, float], profile: dict[str, Any]) -> float:
     cross_up = prev_row["stoch_k"] <= prev_row["stoch_d"] and row["stoch_k"] > row["stoch_d"]
     cross_down = prev_row["stoch_k"] >= prev_row["stoch_d"] and row["stoch_k"] < row["stoch_d"]
@@ -170,6 +242,23 @@ def _score_stoch(direction: str, row: dict[str, float], prev_row: dict[str, floa
     if cross_down:
         return 3.0
     return 0.0
+
+
+def _score_stoch_profile(direction: str, row: dict[str, float], prev_row: dict[str, float], profile: dict[str, Any]) -> float:
+    mode = str(profile.get("stoch_mode", "cross"))
+    base_score = _score_stoch(direction, row, prev_row, profile)
+    if mode == "extreme":
+        if direction == "BUY":
+            if row["stoch_k"] < float(profile["stoch_buy_max"]):
+                if row["stoch_k"] > prev_row["stoch_k"]:
+                    return max(base_score, 5.0)
+                return max(base_score, 3.0)
+        else:
+            if row["stoch_k"] > float(profile["stoch_sell_min"]):
+                if row["stoch_k"] < prev_row["stoch_k"]:
+                    return max(base_score, 5.0)
+                return max(base_score, 3.0)
+    return base_score
 
 
 def _score_volume(row: dict[str, float], profile: dict[str, Any]) -> float:
@@ -208,6 +297,39 @@ def _score_bollinger(direction: str, row: dict[str, float]) -> float:
     return 2.0
 
 
+def _score_bollinger_profile(direction: str, row: dict[str, float], profile: dict[str, Any]) -> float:
+    mode = str(profile.get("bollinger_mode", "balanced"))
+    close = row["close"]
+    upper = row["bb_upper"]
+    lower = row["bb_lower"]
+    middle = row["bb_middle"]
+    if mode == "trend":
+        if direction == "BUY":
+            if close >= upper:
+                return 4.0
+            if close >= middle:
+                return 3.0
+            return 1.0
+        if close <= lower:
+            return 4.0
+        if close <= middle:
+            return 3.0
+        return 1.0
+    if mode == "mean_revert":
+        if direction == "BUY":
+            if lower <= close <= middle:
+                return 4.0
+            if close < lower:
+                return 3.0
+            return 1.0
+        if middle <= close <= upper:
+            return 4.0
+        if close > upper:
+            return 3.0
+        return 1.0
+    return _score_bollinger(direction, row)
+
+
 def _score_atr(row: dict[str, float], atr_baseline: float, profile: dict[str, Any]) -> float:
     atr = max(row["atr14"], 1e-8)
     ratio = atr / max(atr_baseline, 1e-8)
@@ -238,16 +360,16 @@ def calculate_confidence(signal_context: dict[str, Any], config: Config) -> tupl
     asset_profile = signal_context.get("asset_profile") or config.asset_profile_for_symbol(symbol)
 
     scores = {
-        "higher_tf": _score_higher_tf(direction, h4_trend, h1_trend),
+        "higher_tf": _score_higher_tf(direction, h4_trend, h1_trend, asset_profile),
         "ema_alignment": _score_ema(direction, m15),
         "adx_strength": _score_adx(adx_value, asset_profile),
-        "market_structure": _score_structure(direction, structure),
+        "market_structure": _score_structure_profile(direction, structure, asset_profile),
         "setup_quality": _score_setup_quality(direction, m15, m15_prev, asset_profile),
         "rsi_context": _score_rsi(direction, m15["rsi14"], m15_prev["rsi14"], asset_profile, config),
-        "macd_confirmation": _score_macd(direction, m15, m15_prev),
-        "stoch_trigger": _score_stoch(direction, m5, m5_prev, asset_profile),
+        "macd_confirmation": _score_macd_profile(direction, m15, m15_prev, asset_profile),
+        "stoch_trigger": _score_stoch_profile(direction, m5, m5_prev, asset_profile),
         "volume_confirmation": _score_volume(m5, asset_profile),
-        "bollinger_context": _score_bollinger(direction, m15),
+        "bollinger_context": _score_bollinger_profile(direction, m15, asset_profile),
         "atr_suitability": _score_atr(m15, atr_baseline, asset_profile),
     }
 

@@ -107,3 +107,33 @@ def test_asset_profile_changes_scoring_behavior() -> None:
     assert crypto_components["volume_confirmation"] < fx_components["volume_confirmation"]
     assert crypto_reasons[0] == "asset_profile=crypto_major"
     assert fx_reasons[0] == "asset_profile=fx_major"
+
+
+def test_crypto_breakout_setup_scores_higher_than_fx_pullback_on_same_candle() -> None:
+    cfg = Config()
+    crypto_context = _build_context("BUY", symbol="BTCUSDm")
+    fx_context = _build_context("BUY", symbol="EURUSDm")
+
+    crypto_context["m15"].update({"open": 101.0, "low": 100.8, "high": 106.0, "close": 105.6, "ema20": 100.0, "ema50": 98.0})
+    crypto_context["m15_prev"].update({"high": 101.0, "close": 100.5})
+    fx_context["m15"].update({"open": 101.0, "low": 100.8, "high": 106.0, "close": 105.6, "ema20": 100.0, "ema50": 98.0})
+    fx_context["m15_prev"].update({"high": 101.0, "close": 100.5})
+
+    _, crypto_components, _ = calculate_confidence(crypto_context, cfg)
+    _, fx_components, _ = calculate_confidence(fx_context, cfg)
+
+    assert crypto_components["setup_quality"] > fx_components["setup_quality"]
+
+
+def test_metal_mean_reversion_bollinger_scores_higher_than_crypto_on_band_rejection() -> None:
+    cfg = Config()
+    metal_context = _build_context("BUY", symbol="XAUUSDm")
+    crypto_context = _build_context("BUY", symbol="BTCUSDm")
+
+    metal_context["m15"].update({"close": 95.0, "bb_lower": 94.0, "bb_middle": 100.0, "bb_upper": 110.0})
+    crypto_context["m15"].update({"close": 95.0, "bb_lower": 94.0, "bb_middle": 100.0, "bb_upper": 110.0})
+
+    _, metal_components, _ = calculate_confidence(metal_context, cfg)
+    _, crypto_components, _ = calculate_confidence(crypto_context, cfg)
+
+    assert metal_components["bollinger_context"] > crypto_components["bollinger_context"]
