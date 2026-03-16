@@ -163,7 +163,7 @@ def run_scanner(once: bool = False) -> None:
     connector = connect_mt5(CONFIG)
     fetcher = DataFetcher(connector)
     notifier = Notifier(CONFIG, db)
-    executor = ExecutionEngine(CONFIG, db)
+    executor = ExecutionEngine(CONFIG, db, notifier)
 
     try:
         while True:
@@ -267,7 +267,8 @@ def run_sync() -> None:
     logger.info("Sync mode: start order status/PnL synchronization")
     db = SignalDB(CONFIG.db_path)
     connector = connect_mt5(CONFIG)
-    executor = ExecutionEngine(CONFIG, db)
+    notifier = Notifier(CONFIG, db)
+    executor = ExecutionEngine(CONFIG, db, notifier)
     try:
         executor.sync_orders()
         logger.info("Sync mode: completed")
@@ -288,7 +289,7 @@ def run_daemon() -> None:
     connector = connect_mt5(CONFIG)
     fetcher = DataFetcher(connector)
     notifier = Notifier(CONFIG, db)
-    executor = ExecutionEngine(CONFIG, db)
+    executor = ExecutionEngine(CONFIG, db, notifier)
 
     now = time.time()
     next_scan = now
