@@ -474,11 +474,18 @@ class ExecutionEngine:
 
         # Ensure some volume remains open after partial close.
         remaining = position_volume - close_volume
-        if remaining < min_lot:
-            close_volume = position_volume - min_lot
-            close_volume = round(close_volume / step) * step
+        if remaining <= 0 or remaining < min_lot:
+            # Recalculate to leave at least min_lot open
+            if position_volume > min_lot:
+                close_volume = position_volume - min_lot
+                close_volume = round(close_volume / step) * step
+            else:
+                # Can't safely partial close if position is too small
+                return 0.0
 
-        if close_volume < min_lot:
+        if close_volume < min_lot or close_volume <= 0:
+            return 0.0
+        if close_volume > position_volume:
             return 0.0
         return round(close_volume, 6)
 

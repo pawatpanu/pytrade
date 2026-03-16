@@ -38,7 +38,12 @@ class MT5Connector:
 
         if self.config.mt5_login and self.config.mt5_password and self.config.mt5_server:
             account = mt5.account_info()
-            current_login = int(getattr(account, "login", 0) or 0) if account else 0
+            if account is None:
+                logger.warning("MT5 account_info returned None after initialization, attempting login anyway")
+                current_login = 0
+            else:
+                current_login = int(getattr(account, "login", 0) or 0)
+            
             if current_login != int(self.config.mt5_login):
                 logged_in = mt5.login(
                     login=self.config.mt5_login,
