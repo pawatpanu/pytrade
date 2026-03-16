@@ -1,0 +1,115 @@
+{
+  "name": "PyTrade Trading Dashboard",
+  "short_name": "PyTrade",
+  "description": "MT5 Multi-timeframe Signal Analysis & Execution System",
+  "start_url": "/?lang=th",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#FF6B6B",
+  
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23FF6B6B' width='192' height='192'/><text x='50%' y='50%' font-size='100' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'><tspan>P</tspan></text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%23FF6B6B;stop-opacity:1' /><stop offset='100%' style='stop-color:%23FF4444;stop-opacity:1' /></linearGradient></defs><rect fill='url(%23grad)' width='512' height='512'/><circle cx='256' cy='256' r='180' fill='none' stroke='white' stroke-width='20'/><path d='M 256 100 L 350 220 L 300 220 L 300 350 L 212 350 L 212 220 L 162 220 Z' fill='white'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+
+  "categories": ["finance", "productivity"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23f5f5f5' width='540' height='720'/><text x='270' y='100' font-size='32' font-weight='bold' fill='%23333' text-anchor='middle'>PyTrade Dashboard</text><rect x='20' y='150' width='500' height='100' fill='%23FF6B6B' rx='8'/><text x='270' y='210' font-size='24' fill='white' text-anchor='middle'>Live Trading View</text></svg>",
+      "sizes": "540x720",
+      "form_factor": "narrow",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect fill='%23f5f5f5' width='1280' height='720'/><text x='640' y='100' font-size='32' font-weight='bold' fill='%23333' text-anchor='middle'>PyTrade Dashboard</text><rect x='20' y='150' width='1240' height='520' fill='%23FF6B6B' rx='8'/><text x='640' y='410' font-size='24' fill='white' text-anchor='middle'>Multi-Timeframe Analysis</text></svg>",
+      "sizes": "1280x720",
+      "form_factor": "wide",
+      "type": "image/svg+xml"
+    }
+  ],
+
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View main trading dashboard",
+      "url": "/?lang=th&page=home",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%23FF6B6B' width='96' height='96'/><text x='48' y='48' font-size='50' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>D</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Open Orders",
+      "short_name": "Orders",
+      "description": "View all open positions",
+      "url": "/?lang=th&page=orders",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%232196F3' width='96' height='96'/><text x='48' y='48' font-size='50' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>O</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "short_name": "History",
+      "description": "View trade history",
+      "url": "/?lang=th&page=history",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%234CAF50' width='96' height='96'/><text x='48' y='48' font-size='50' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>H</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+
+  "protocol_handlers": [
+    {
+      "protocol": "web+pytrade",
+      "url": "/?trade=%s"
+    }
+  ],
+
+  "permissions": [
+    "notifications",
+    "geolocation"
+  ],
+
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "windows",
+      "url": "https://github.com/pawatpanu/pytrade"
+    }
+  ]
+}

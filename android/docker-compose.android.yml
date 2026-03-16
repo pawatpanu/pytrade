@@ -1,0 +1,176 @@
+version: '3.8'
+
+# Docker Compose for PyTrade on Android (Termux)
+# Usage: docker-compose -f docker-compose.android.yml up
+#
+# WARNING: Docker on Termux is experimental and requires:
+# - Advanced knowledge
+# - ~5GB storage
+# - Heavy CPU usage
+#
+# RECOMMENDATION: Use Option 1 (Web PWA) instead for most users
+#
+
+services:
+  pytrade-daemon:
+    image: python:3.13-slim
+    container_name: pytrade-daemon
+    restart: unless-stopped
+    
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTRADE_MODE=daemon
+      - MT5_LOGIN=${MT5_LOGIN}
+      - MT5_PASSWORD=${MT5_PASSWORD}
+      - MT5_SERVER=${MT5_SERVER}
+      - EXECUTION_MODE=demo
+      - ENABLE_EXECUTION=false
+    
+    volumes:
+      - ./:/app/pytrade
+      - ./logs:/app/pytrade/logs
+      - ./signals.db:/app/pytrade/signals.db
+    
+    working_dir: /app/pytrade
+    
+    command: >
+      sh -c "
+        pip install -q -r requirements.txt &&
+        python main.py --mode daemon
+      "
+    
+    ports:
+      - "5000:5000"
+    
+    networks:
+      - pytrade-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  streamlit-dashboard:
+    image: python:3.13-slim
+    container_name: pytrade-dashboard
+    restart: unless-stopped
+    
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STREAMLIT_THEME_BASE=dark
+      - STREAMLIT_LOGGER_LEVEL=info
+      - STREAMLIT_CLIENT_SHOW_ERROR_DETAILS=false
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_RUNONSAVE=true
+    
+    volumes:
+      - ./:/app/pytrade
+      - ./logs:/app/pytrade/logs
+      - ./signals.db:/app/pytrade/signals.db
+    
+    working_dir: /app/pytrade
+    
+    command: >
+      sh -c "
+        pip install -q -r requirements.txt &&
+        python -m streamlit run streamlit_app.py --server.port 8501
+      "
+    
+    ports:
+      - "8501:8501"
+    
+    depends_on:
+      - pytrade-daemon
+    
+    networks:
+      - pytrade-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Nginx reverse proxy for cleaner URLs
+  nginx-proxy:
+    image: nginx:latest
+    container_name: pytrade-proxy
+    restart: unless-stopped
+    
+    volumes:
+      - ./android/nginx.conf:/etc/nginx/nginx.conf:ro
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    depends_on:
+      - streamlit-dashboard
+      - pytrade-daemon
+    
+    networks:
+      - pytrade-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  pytrade-network:
+    driver: bridge
+
+volumes:
+  pytrade-data:
+    driver: local
+  pytrade-logs:
+    driver: local
+
+# ============================================
+# Building Images (First time)
+# ============================================
+# docker-compose -f docker-compose.android.yml build
+
+# ============================================
+# Starting Services
+# ============================================
+# docker-compose -f docker-compose.android.yml up -d
+
+# ============================================
+# Stopping Services
+# ============================================
+# docker-compose -f docker-compose.android.yml down
+
+# ============================================
+# Viewing Logs
+# ============================================
+# docker-compose -f docker-compose.android.yml logs -f streamlit-dashboard
+# docker-compose -f docker-compose.android.yml logs -f pytrade-daemon
+
+# ============================================
+# Rebuilding (after code changes)
+# ============================================
+# docker-compose -f docker-compose.android.yml build --no-cache
+# docker-compose -f docker-compose.android.yml up -d
+
+# ============================================
+# Notes for Termux Users
+# ============================================
+# 1. Install Docker: apt install docker-compose
+# 2. Start Docker daemon: sudo service docker start
+# 3. Add user to docker group: usermod -aG docker $USER
+# 4. Logout and login again
+# 5. Run: docker-compose -f docker-compose.android.yml up -d
+#
+# WARNING: This will use significant resources on Android!
+# Only recommended for testing/learning.
+
+# ============================================
+# ACCESS
+# ============================================
+# Dashboard: http://localhost:8501
+# API: http://localhost:5000
+# Proxy: http://localhost:80
