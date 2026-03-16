@@ -588,7 +588,8 @@ class ExecutionEngine:
         max_open = int(self.config.max_open_positions)
         if signal.category == "premium" and self.config.enable_premium_stack:
             max_open += int(self.config.premium_stack_extra_slots)
-        if signal.score >= float(self.config.ultra_stack_score) and self.config.enable_ultra_stack:
+        # FIX: Check category instead of raw score for consistency
+        if signal.category == "ultra" and self.config.enable_ultra_stack:
             max_open += int(self.config.ultra_stack_extra_slots)
         return max(1, max_open)
 

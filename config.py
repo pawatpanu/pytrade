@@ -42,13 +42,13 @@ def _parse_weights(value: str | None) -> dict[str, int]:
         "ema_alignment": 15,
         "adx_strength": 10,
         "market_structure": 10,
-        "setup_quality": 10,
+        "setup_quality": 12,
         "rsi_context": 8,
         "macd_confirmation": 8,
         "stoch_trigger": 5,
         "volume_confirmation": 5,
         "bollinger_context": 4,
-        "atr_suitability": 5,
+        "atr_suitability": 3,
     }
     if not value:
         return default
@@ -398,6 +398,14 @@ class Config:
         self.trailing_distance_r = max(0.2, float(self.trailing_distance_r))
         self.partial_close_trigger_r = max(0.5, float(self.partial_close_trigger_r))
         self.partial_close_ratio = min(0.9, max(0.1, float(self.partial_close_ratio)))
+        weights_total = sum(self.weights.values())
+        if weights_total != 100:
+            if 90 <= weights_total <= 110:
+                scale_factor = 100.0 / weights_total
+                self.weights = {k: int(round(v * scale_factor)) for k, v in self.weights.items()}
+                logger.info("Auto-scaled weights from %d to 100", weights_total)
+            else:
+                logger.warning("Weight total mismatch: got %d, expected 100. Set WEIGHTS env var to fix.", weights_total)
 
     def _apply_signal_profile(self) -> None:
         if self.signal_profile == "custom":
