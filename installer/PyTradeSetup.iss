@@ -24,7 +24,7 @@ AppId={{8C66D4E4-9D95-4BBF-9D2A-6A8A4A6A9A31}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName=C:\pytrade
+DefaultDirName={localappdata}\PyTrade
 DefaultGroupName=PyTrade
 DisableProgramGroupPage=yes
 OutputDir=output
@@ -33,6 +33,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
+UninstallDisplayIcon={app}\PyTrade-Launcher.bat
 #ifdef SetupIconPath
 SetupIconFile={#SetupIconPath}
 #endif
@@ -93,14 +94,19 @@ thai.MsgRequiredSymbols=Please set SYMBOLS.
 thai.MsgPostInstallFail=Post-install configuration failed. You can run scripts\one_click_installer.ps1 manually.
 
 [Files]
-Source: "..\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: ".git\*,.venv\*,.env,*.db,logs\*,.runtime\*,__pycache__\*,.pytest_cache\*,.pytest_tmp\*,tmp\*,ptmp*\*,pytest_work\*,*.pyc,output\*,installer\output\*"
+Source: "..\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: ".git\*,.venv\*,.env,*.db,logs\*,.runtime\*,__pycache__\*,.pytest_cache\*,.pytest_tmp\*,tmp\*,ptmp*\*,pytest_work\*,*.pyc,output\*,installer\output\*,unins000.dat,unins000.exe"
 
 [Icons]
-Name: "{autodesktop}\PyTrade Control Center"; Filename: "{app}\Run-Dashboard.bat"; WorkingDir: "{app}"
-Name: "{group}\PyTrade Control Center"; Filename: "{app}\Run-Dashboard.bat"; WorkingDir: "{app}"
+Name: "{autodesktop}\PyTrade Control Center"; Filename: "{app}\Launch-GUI.bat"; WorkingDir: "{app}"
+Name: "{autodesktop}\PyTrade Quick Start"; Filename: "{app}\Quick-Start.bat"; WorkingDir: "{app}"
+Name: "{group}\PyTrade Control Center"; Filename: "{app}\Launch-GUI.bat"; WorkingDir: "{app}"
+Name: "{group}\PyTrade Quick Start"; Filename: "{app}\Quick-Start.bat"; WorkingDir: "{app}"
+Name: "{group}\PyTrade Dashboard"; Filename: "{app}\Run-Dashboard.bat"; WorkingDir: "{app}"
+Name: "{group}\Uninstall PyTrade"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\install_windows.ps1"" -ProjectRoot ""{app}"""; Flags: runhidden waituntilterminated; StatusMsg: "Configuring PyTrade..."
+Filename: "{app}\Launch-GUI.bat"; Description: "Launch PyTrade now"; Flags: postinstall nowait skipifsilent unchecked
 
 [Code]
 var
@@ -208,4 +214,3 @@ begin
     end;
   end;
 end;
-
