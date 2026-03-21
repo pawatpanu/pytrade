@@ -16,10 +16,9 @@ logger = logging.getLogger(__name__)
 class ExecutionEngine:
     """Demo-first execution engine with safety guards and DB audit logs."""
 
-    def __init__(self, config: Config, db: SignalDB, notifier=None) -> None:
+    def __init__(self, config: Config, db: SignalDB) -> None:
         self.config = config
         self.db = db
-        self.notifier = notifier
 
     def try_execute_signal(self, signal: SignalResult) -> None:
         allowed, reason = self._precheck(signal)
@@ -122,24 +121,6 @@ class ExecutionEngine:
             tp,
             result.retcode,
         )
-        
-        # Send Telegram notification for successful execution
-        if self.notifier:
-            execution_text = (
-                f"πŸ'° EXECUTION FILLED\n"
-                f"{signal.direction} {signal.symbol} @ {entry:.5f}\n"
-                f"Vol: {volume:.4f} | SL: {sl:.5f} | TP: {tp:.5f}\n"
-                f"Risk: ${plan.get('risk_amount', 0):.2f} | Score: {signal.score:.2f}\n"
-                f"Timestamp: {datetime.now(timezone.utc).isoformat()}"
-            )
-            try:
-                if self.config.telegram_enabled and self.config.telegram_token:
-                    import requests
-                    url = f"https://api.telegram.org/bot{self.config.telegram_token}/sendMessage"
-                    payload = {"chat_id": self.config.telegram_chat_id, "text": execution_text}
-                    requests.post(url, json=payload, timeout=5)
-            except Exception as e:
-                logger.warning("Failed to send execution notification: %s", e)
 
     def _resolve_risk_amount(self, plan: dict[str, float]) -> float:
         """Resolve risk amount for sizing using live account data when enabled."""
@@ -493,18 +474,11 @@ class ExecutionEngine:
 
         # Ensure some volume remains open after partial close.
         remaining = position_volume - close_volume
-        if remaining <= 0 or remaining < min_lot:
-            # Recalculate to leave at least min_lot open
-            if position_volume > min_lot:
-                close_volume = position_volume - min_lot
-                close_volume = round(close_volume / step) * step
-            else:
-                # Can't safely partial close if position is too small
-                return 0.0
+        if remaining < min_lot:
+            close_volume = position_volume - min_lot
+            close_volume = round(close_volume / step) * step
 
-        if close_volume < min_lot or close_volume <= 0:
-            return 0.0
-        if close_volume > position_volume:
+        if close_volume < min_lot:
             return 0.0
         return round(close_volume, 6)
 

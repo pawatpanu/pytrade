@@ -74,11 +74,62 @@ def _volume_spike(df: pd.DataFrame, volume_spike_ratio: float) -> bool:
     return bool(row["volume"] >= volume_spike_ratio * row["volume_sma20"])
 
 
+def _safe_volume_ratio(df: pd.DataFrame) -> float:
+    row = df.iloc[-2]
+    baseline = max(float(row.get("volume_sma20", 0.0) or 0.0), 1e-8)
+    return float(row.get("volume", 0.0) or 0.0) / baseline
+
+
+def _di_bias(direction: str, row: pd.Series) -> float:
+    plus_di = float(row.get("plus_di14", row.get("adx14", 0.0)))
+    minus_di = float(row.get("minus_di14", row.get("adx14", 0.0)))
+    if direction == "BUY":
+        return plus_di - minus_di
+    return minus_di - plus_di
+
+
+def _metal_adaptive_reversal_ok(direction: str, h4_trend: str, m15: pd.DataFrame, m5: pd.DataFrame, profile: dict[str, Any]) -> bool:
+    """Allow gold signals in strict mode during H4 sideway only when reversal confluence is strong."""
+    if h4_trend != "sideway":
+        return False
+
+    m15_row = m15.iloc[-2]
+    m15_prev = m15.iloc[-3]
+    m5_row = m5.iloc[-2]
+    m5_prev = m5.iloc[-3]
+
+    close = float(m15_row["close"])
+    bb_upper = float(m15_row["bb_upper"])
+    bb_lower = float(m15_row["bb_lower"])
+    band = max(bb_upper - bb_lower, 1e-8)
+    rsi = float(m15_row["rsi14"])
+    stoch = float(m5_row["stoch_k"])
+    prev_stoch = float(m5_prev["stoch_k"])
+    macd_hist = float(m15_row["macd_hist"])
+    prev_macd_hist = float(m15_prev["macd_hist"])
+    m15_di_bias = _di_bias(direction, m15_row)
+    m5_di_bias = _di_bias(direction, m5_row)
+
+    if direction == "BUY":
+        near_extreme = close <= (bb_lower + 0.35 * band)
+        rsi_extreme = rsi <= float(profile["rsi_buy_low"]) + 3.0
+        trigger_turn = (stoch <= float(profile["stoch_buy_max"]) + 10.0 and stoch > prev_stoch) or macd_hist >= prev_macd_hist
+        di_turn = m15_di_bias >= -3.0 and m5_di_bias >= -4.0
+        return bool(near_extreme and rsi_extreme and trigger_turn and di_turn)
+
+    near_extreme = close >= (bb_upper - 0.35 * band)
+    rsi_extreme = rsi >= float(profile["rsi_sell_high"]) - 3.0
+    trigger_turn = (stoch >= float(profile["stoch_sell_min"]) - 10.0 and stoch < prev_stoch) or macd_hist <= prev_macd_hist
+    di_turn = m15_di_bias >= -3.0 and m5_di_bias >= -4.0
+    return bool(near_extreme and rsi_extreme and trigger_turn and di_turn)
+
+
 def _hard_filters(
     symbol: str,
     direction: str,
     mtf_data: dict[str, pd.DataFrame],
     cfg: Config,
+    market_context: dict[str, Any] | None = None,
 ) -> tuple[bool, list[str], dict[str, str], dict[str, Any]]:
     asset_profile = cfg.asset_profile_for_symbol(symbol)
     h4 = mtf_data[cfg.timeframe_primary]
@@ -105,10 +156,23 @@ def _hard_filters(
     if adx_value < adx_minimum:
         reasons.append(f"ADX too low ({adx_value:.2f} < {adx_minimum:.2f})")
 
+    is_metal = str(asset_profile.get("asset_profile", "")) == "metal"
+    metal_adaptive_reversal = is_metal and strict_mode and _metal_adaptive_reversal_ok(direction, h4_trend, m15, m5, asset_profile)
+    metal_sideway_bias = False
+    if is_metal and strict_mode and h4_trend == "sideway":
+        if direction == "BUY":
+            metal_sideway_bias = h1_trend == "bullish" or m15_trend == "bullish"
+        else:
+            metal_sideway_bias = h1_trend == "bearish" or m15_trend == "bearish"
+    metal_override = metal_adaptive_reversal or metal_sideway_bias
+
     m15_row = m15.iloc[-2]
     entry_distance_atr = abs(float(m15_row["close"] - m15_row["ema20"])) / max(float(m15_row["atr14"]), 1e-8)
     base_entry_zone = float(asset_profile["entry_zone_max_atr"])
     allowed_entry_zone = base_entry_zone if strict_mode else base_entry_zone * 1.5
+    # Gold can swing wider around EMA before reversal; keep strict mode but allow modestly wider zone.
+    if is_metal and strict_mode:
+        allowed_entry_zone = max(allowed_entry_zone, base_entry_zone * 1.35)
     if entry_distance_atr > allowed_entry_zone:
         reasons.append(f"Price too far from entry zone ({entry_distance_atr:.2f} ATR)")
 
@@ -116,30 +180,55 @@ def _hard_filters(
         if h4_trend == "bearish":
             reasons.append("H4 bearish conflict")
         elif h4_trend != "bullish":
-            if strict_mode:
+            if strict_mode and not metal_override:
                 reasons.append("H4 not bullish")
-            elif h1_trend != "bullish" and m15_trend != "bullish":
+            elif not strict_mode and h1_trend != "bullish" and m15_trend != "bullish":
                 reasons.append("H4 sideway without bullish bias")
 
-        if h1_trend == "bearish" and (strict_mode or m15_trend != "bullish"):
+        if h1_trend == "bearish" and (strict_mode or m15_trend != "bullish") and not metal_override:
             reasons.append("H1 bearish conflict")
-        if m15_trend == "bearish" and m5_trend == "bearish":
+        if m15_trend == "bearish" and m5_trend == "bearish" and not metal_override:
             reasons.append("Severe lower TF conflict")
     else:
         if h4_trend == "bullish":
             reasons.append("H4 bullish conflict")
         elif h4_trend != "bearish":
-            if strict_mode:
+            if strict_mode and not metal_override:
                 reasons.append("H4 not bearish")
-            elif h1_trend != "bearish" and m15_trend != "bearish":
+            elif not strict_mode and h1_trend != "bearish" and m15_trend != "bearish":
                 reasons.append("H4 sideway without bearish bias")
 
-        if h1_trend == "bullish" and (strict_mode or m15_trend != "bearish"):
+        if h1_trend == "bullish" and (strict_mode or m15_trend != "bearish") and not metal_override:
             reasons.append("H1 bullish conflict")
-        if m15_trend == "bullish" and m5_trend == "bullish":
+        if m15_trend == "bullish" and m5_trend == "bullish" and not metal_override:
             reasons.append("Severe lower TF conflict")
 
+    if cfg.enable_volume_regime_filter:
+        ratios = {
+            "M5": _safe_volume_ratio(m5),
+            "M15": _safe_volume_ratio(m15),
+            "H1": _safe_volume_ratio(h1),
+        }
+        volume_checks = {
+            "M5": ratios["M5"] >= float(cfg.volume_ratio_m5_min),
+            "M15": ratios["M15"] >= float(cfg.volume_ratio_m15_min),
+            "H1": ratios["H1"] >= float(cfg.volume_ratio_h1_min),
+        }
+        passes = sum(bool(v) for v in volume_checks.values())
+        summary["VOL"] = ", ".join(f"{k}:{ratios[k]:.2f}" for k in ("M5", "M15", "H1"))
+        if passes < int(cfg.volume_min_confirmations):
+            reasons.append(
+                f"Volume regime weak ({passes}/3 < {int(cfg.volume_min_confirmations)}): "
+                f"M5={ratios['M5']:.2f}, M15={ratios['M15']:.2f}, H1={ratios['H1']:.2f}"
+            )
+
+    if cfg.enable_news_filter and market_context:
+        if bool(market_context.get("blocked", False)):
+            reason = str(market_context.get("reason", "news_blocked"))
+            reasons.append(f"News risk block ({reason})")
+
     return len(reasons) == 0, reasons, summary, asset_profile
+
 
 
 def _build_indicator_snapshot(m15: pd.DataFrame) -> dict[str, float]:
@@ -160,8 +249,9 @@ def _evaluate_direction(
     direction: str,
     mtf_data: dict[str, pd.DataFrame],
     cfg: Config,
+    market_context: dict[str, Any] | None = None,
 ) -> SignalResult:
-    hard_ok, hard_reasons, tf_summary, asset_profile = _hard_filters(symbol, direction, mtf_data, cfg)
+    hard_ok, hard_reasons, tf_summary, asset_profile = _hard_filters(symbol, direction, mtf_data, cfg, market_context=market_context)
 
     m15 = mtf_data[cfg.timeframe_setup]
     m5 = mtf_data[cfg.timeframe_trigger]
@@ -171,24 +261,60 @@ def _evaluate_direction(
     price = float(m5.iloc[-2]["close"])
     timestamp = _time(m5, -2)
 
+    structure = detect_price_structure(m15)
+    support, resistance = detect_support_resistance(m15)
+
+    m15_row = _row(m15, -2)
+    m15_prev = _row(m15, -3)
+    m5_row = _row(m5, -2)
+    m5_prev = _row(m5, -3)
+
+    adx_value = max(float(h1.iloc[-2]["adx14"]), float(m15.iloc[-2]["adx14"]))
+    atr_baseline = float(m15["atr14"].tail(100).median()) if len(m15) >= 100 else float(m15["atr14"].median())
+
+    context: dict[str, Any] = {
+        "symbol": symbol,
+        "direction": direction,
+        "asset_profile": asset_profile,
+        "h4_trend": detect_trend(h4),
+        "h1_trend": detect_trend(h1),
+        "m15": m15_row,
+        "m15_prev": m15_prev,
+        "m5": m5_row,
+        "m5_prev": m5_prev,
+        "structure": structure,
+        "adx_value": adx_value,
+        "atr_baseline": atr_baseline,
+    }
+    score, component_scores, reasons = calculate_confidence(context, cfg)
+
     if not hard_ok:
+        trade_plan = build_trade_plan(
+            direction=direction,
+            entry_price=price,
+            atr=float(m15.iloc[-2]["atr14"]),
+            account_balance=cfg.account_balance,
+            risk_per_trade_pct=float(cfg.risk_per_trade_pct) * float(asset_profile.get("risk_pct_multiplier", 1.0)),
+            sl_atr_multiplier=float(asset_profile["sl_atr_multiplier"]),
+            target_rr=float(asset_profile["target_rr"]),
+        )
         return SignalResult(
             symbol=symbol,
             normalized_symbol=normalized_symbol,
             direction=direction,
-            score=0.0,
+            score=score,
             category="ignore",
             price=price,
             timestamp=timestamp,
             timeframe_summary=tf_summary,
-            reason_summary=f"Hard filters failed [{asset_profile['asset_profile']}]",
+            reason_summary="; ".join(reasons + [f"hard_fail[{asset_profile['asset_profile']}]"]),
             indicator_snapshot=_build_indicator_snapshot(m15),
             hard_filters_passed=False,
             hard_filter_reasons=hard_reasons,
-            component_scores={},
+            component_scores=component_scores,
+            trade_plan=asdict(trade_plan),
         )
 
-    structure = detect_price_structure(m15)
     support, resistance = detect_support_resistance(m15)
 
     m15_row = _row(m15, -2)
@@ -296,11 +422,23 @@ def _evaluate_direction(
     )
 
 
-def evaluate_buy_signal(symbol: str, normalized_symbol: str, mtf_data: dict[str, pd.DataFrame], cfg: Config) -> SignalResult:
+def evaluate_buy_signal(
+    symbol: str,
+    normalized_symbol: str,
+    mtf_data: dict[str, pd.DataFrame],
+    cfg: Config,
+    market_context: dict[str, Any] | None = None,
+) -> SignalResult:
     """Evaluate BUY signal using MTF logic + hard filters + scoring."""
-    return _evaluate_direction(symbol, normalized_symbol, "BUY", mtf_data, cfg)
+    return _evaluate_direction(symbol, normalized_symbol, "BUY", mtf_data, cfg, market_context=market_context)
 
 
-def evaluate_sell_signal(symbol: str, normalized_symbol: str, mtf_data: dict[str, pd.DataFrame], cfg: Config) -> SignalResult:
+def evaluate_sell_signal(
+    symbol: str,
+    normalized_symbol: str,
+    mtf_data: dict[str, pd.DataFrame],
+    cfg: Config,
+    market_context: dict[str, Any] | None = None,
+) -> SignalResult:
     """Evaluate SELL signal using MTF logic + hard filters + scoring."""
-    return _evaluate_direction(symbol, normalized_symbol, "SELL", mtf_data, cfg)
+    return _evaluate_direction(symbol, normalized_symbol, "SELL", mtf_data, cfg, market_context=market_context)

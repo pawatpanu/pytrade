@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import re
@@ -361,6 +361,49 @@ class Config:
     enable_partial_close: bool = field(default_factory=lambda: _parse_bool(os.getenv("ENABLE_PARTIAL_CLOSE"), False))
     partial_close_trigger_r: float = field(default_factory=lambda: _parse_float(os.getenv("PARTIAL_CLOSE_TRIGGER_R"), 1.5))
     partial_close_ratio: float = field(default_factory=lambda: _parse_float(os.getenv("PARTIAL_CLOSE_RATIO"), 0.5))
+    enable_volume_regime_filter: bool = field(default_factory=lambda: _parse_bool(os.getenv("ENABLE_VOLUME_REGIME_FILTER"), True))
+    volume_ratio_m5_min: float = field(default_factory=lambda: _parse_float(os.getenv("VOLUME_RATIO_M5_MIN"), 0.85))
+    volume_ratio_m15_min: float = field(default_factory=lambda: _parse_float(os.getenv("VOLUME_RATIO_M15_MIN"), 0.95))
+    volume_ratio_h1_min: float = field(default_factory=lambda: _parse_float(os.getenv("VOLUME_RATIO_H1_MIN"), 0.60))
+    volume_min_confirmations: int = field(default_factory=lambda: _parse_int(os.getenv("VOLUME_MIN_CONFIRMATIONS"), 2))
+    enable_news_filter: bool = field(default_factory=lambda: _parse_bool(os.getenv("ENABLE_NEWS_FILTER"), True))
+    news_fail_open: bool = field(default_factory=lambda: _parse_bool(os.getenv("NEWS_FAIL_OPEN"), True))
+    news_fetch_timeout_seconds: int = field(default_factory=lambda: _parse_int(os.getenv("NEWS_FETCH_TIMEOUT_SECONDS"), 6))
+    news_refresh_seconds: int = field(default_factory=lambda: _parse_int(os.getenv("NEWS_REFRESH_SECONDS"), 180))
+    news_lookback_minutes: int = field(default_factory=lambda: _parse_int(os.getenv("NEWS_LOOKBACK_MINUTES"), 180))
+    news_block_minutes: int = field(default_factory=lambda: _parse_int(os.getenv("NEWS_BLOCK_MINUTES"), 45))
+    news_keywords: list[str] = field(
+        default_factory=lambda: _parse_csv(
+            os.getenv("NEWS_KEYWORDS"),
+            [
+                "gold",
+                "xau",
+                "bullion",
+                "fed",
+                "fomc",
+                "rate",
+                "cpi",
+                "ppi",
+                "nfp",
+                "treasury",
+                "yield",
+                "usd",
+                "dollar",
+                "war",
+                "sanction",
+                "tariff",
+            ],
+        )
+    )
+    news_sources: list[str] = field(
+        default_factory=lambda: _parse_csv(
+            os.getenv("NEWS_SOURCES"),
+            [
+                "https://news.google.com/rss/search?q=XAUUSD+OR+gold+price+OR+Federal+Reserve&hl=en-US&gl=US&ceid=US:en",
+                "https://news.google.com/rss/search?q=US+CPI+OR+PPI+OR+NFP+OR+Treasury+yields&hl=en-US&gl=US&ceid=US:en",
+            ],
+        )
+    )
     log_skipped_reasons: list[str] = field(
         default_factory=lambda: _parse_csv(
             os.getenv("LOG_SKIPPED_REASONS"),
@@ -398,6 +441,16 @@ class Config:
         self.trailing_distance_r = max(0.2, float(self.trailing_distance_r))
         self.partial_close_trigger_r = max(0.5, float(self.partial_close_trigger_r))
         self.partial_close_ratio = min(0.9, max(0.1, float(self.partial_close_ratio)))
+        self.volume_ratio_m5_min = max(0.1, float(self.volume_ratio_m5_min))
+        self.volume_ratio_m15_min = max(0.1, float(self.volume_ratio_m15_min))
+        self.volume_ratio_h1_min = max(0.1, float(self.volume_ratio_h1_min))
+        self.volume_min_confirmations = max(1, min(3, int(self.volume_min_confirmations)))
+        self.news_fetch_timeout_seconds = max(1, int(self.news_fetch_timeout_seconds))
+        self.news_refresh_seconds = max(30, int(self.news_refresh_seconds))
+        self.news_lookback_minutes = max(15, int(self.news_lookback_minutes))
+        self.news_block_minutes = max(1, int(self.news_block_minutes))
+        self.news_keywords = [x.lower() for x in self.news_keywords if x.strip()]
+        self.news_sources = [x for x in self.news_sources if x.strip()]
         weights_total = sum(self.weights.values())
         if weights_total != 100:
             if 90 <= weights_total <= 110:
@@ -478,3 +531,4 @@ class Config:
 
 
 CONFIG = Config()
+

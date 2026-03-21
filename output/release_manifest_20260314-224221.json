@@ -1,0 +1,12 @@
+﻿{
+    "package_type":  "pytrade_release",
+    "version":  "20260314-224221",
+    "build_stamp":  "20260314-224221",
+    "built_at":  "2026-03-15 09:12:40 +07:00",
+    "git_commit":  "cd197e2",
+    "installer_file":  "PyTradeSetup-20260314-224221.exe",
+    "release_notes_file":  "RELEASE-NOTES-20260314-224221.md",
+    "default_install_dir":  "C:\\pytrade",
+    "supports_upgrade":  true,
+    "supports_rollback":  true
+}

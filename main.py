@@ -15,6 +15,7 @@ from core.indicators import calculate_indicators
 from core.logger_db import SignalDB, save_signal_to_db
 from core.mt5_connector import connect_mt5, get_available_symbols
 from core.notifier import Notifier, send_alert, should_alert
+from core.news_filter import NewsRiskEngine
 from core.signal_engine import evaluate_buy_signal, evaluate_sell_signal
 from core.symbol_manager import SymbolManager
 from core.utils import setup_logging, timeframe_minutes
@@ -58,6 +59,7 @@ def _evaluate_symbol(
     db: SignalDB,
     notifier: Notifier,
     executor: ExecutionEngine,
+    news_engine: NewsRiskEngine | None = None,
 ) -> None:
     cfg = CONFIG
     mtf_data = _prepare_mtf_data(fetcher, normalized_symbol, cfg)
@@ -70,8 +72,9 @@ def _evaluate_symbol(
         )
         return
 
-    buy = evaluate_buy_signal(symbol, normalized_symbol, mtf_data, cfg)
-    sell = evaluate_sell_signal(symbol, normalized_symbol, mtf_data, cfg)
+    market_context = news_engine.analyze_symbol(normalized_symbol) if news_engine is not None else None
+    buy = evaluate_buy_signal(symbol, normalized_symbol, mtf_data, cfg, market_context=market_context)
+    sell = evaluate_sell_signal(symbol, normalized_symbol, mtf_data, cfg, market_context=market_context)
 
     save_signal_to_db(db, buy)
     save_signal_to_db(db, sell)
@@ -118,7 +121,14 @@ def _evaluate_symbol(
     executor.try_execute_signal(best)
 
 
-def _scan_cycle(connector: object, fetcher: DataFetcher, db: SignalDB, notifier: Notifier, executor: ExecutionEngine) -> None:
+def _scan_cycle(
+    connector: object,
+    fetcher: DataFetcher,
+    db: SignalDB,
+    notifier: Notifier,
+    executor: ExecutionEngine,
+    news_engine: NewsRiskEngine | None = None,
+) -> None:
     available_symbols = get_available_symbols(connector)
     mapping = SymbolManager(CONFIG.symbols, available_symbols).resolve()
     if not mapping:
@@ -127,7 +137,7 @@ def _scan_cycle(connector: object, fetcher: DataFetcher, db: SignalDB, notifier:
 
     for symbol, normalized in mapping.items():
         try:
-            _evaluate_symbol(symbol, normalized, fetcher, db, notifier, executor)
+            _evaluate_symbol(symbol, normalized, fetcher, db, notifier, executor, news_engine=news_engine)
         except Exception as exc:
             logger.exception("Scan failed for %s (%s): %s", symbol, normalized, exc)
             db.log_scan_event(symbol, "ERROR", "scan_exception", {"error": str(exc)})
@@ -163,12 +173,13 @@ def run_scanner(once: bool = False) -> None:
     connector = connect_mt5(CONFIG)
     fetcher = DataFetcher(connector)
     notifier = Notifier(CONFIG, db)
-    executor = ExecutionEngine(CONFIG, db, notifier)
+    executor = ExecutionEngine(CONFIG, db)
+    news_engine = NewsRiskEngine(CONFIG)
 
     try:
         while True:
             executor.sync_orders()
-            _scan_cycle(connector, fetcher, db, notifier, executor)
+            _scan_cycle(connector, fetcher, db, notifier, executor, news_engine=news_engine)
 
             if once:
                 break
@@ -267,8 +278,7 @@ def run_sync() -> None:
     logger.info("Sync mode: start order status/PnL synchronization")
     db = SignalDB(CONFIG.db_path)
     connector = connect_mt5(CONFIG)
-    notifier = Notifier(CONFIG, db)
-    executor = ExecutionEngine(CONFIG, db, notifier)
+    executor = ExecutionEngine(CONFIG, db)
     try:
         executor.sync_orders()
         logger.info("Sync mode: completed")
@@ -289,7 +299,8 @@ def run_daemon() -> None:
     connector = connect_mt5(CONFIG)
     fetcher = DataFetcher(connector)
     notifier = Notifier(CONFIG, db)
-    executor = ExecutionEngine(CONFIG, db, notifier)
+    executor = ExecutionEngine(CONFIG, db)
+    news_engine = NewsRiskEngine(CONFIG)
 
     now = time.time()
     next_scan = now
@@ -304,7 +315,7 @@ def run_daemon() -> None:
                 next_sync = tick + max(1, CONFIG.sync_interval_seconds)
 
             if tick >= next_scan:
-                _scan_cycle(connector, fetcher, db, notifier, executor)
+                _scan_cycle(connector, fetcher, db, notifier, executor, news_engine=news_engine)
                 next_scan = tick + max(1, CONFIG.scan_interval_seconds)
 
             if tick >= next_summary:

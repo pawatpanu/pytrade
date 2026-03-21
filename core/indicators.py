@@ -75,7 +75,10 @@ def calculate_indicators(df: pd.DataFrame, use_vwap: bool = False, use_supertren
     out["bb_middle"] = bb.bollinger_mavg()
     out["bb_lower"] = bb.bollinger_lband()
 
-    out["adx14"] = ADXIndicator(out["high"], out["low"], out["close"], window=14).adx()
+    adx = ADXIndicator(out["high"], out["low"], out["close"], window=14)
+    out["adx14"] = adx.adx()
+    out["plus_di14"] = adx.adx_pos()
+    out["minus_di14"] = adx.adx_neg()
     out["atr14"] = AverageTrueRange(out["high"], out["low"], out["close"], window=14).average_true_range()
 
     stoch = StochasticOscillator(out["high"], out["low"], out["close"], window=14, smooth_window=3)

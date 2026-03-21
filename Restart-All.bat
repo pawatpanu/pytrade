@@ -1,5 +1,5 @@
 @echo off
 cd /d "%~dp0"
-call ".\Stop-All.bat"
+call ".\scripts\Stop-All.bat" --silent
 timeout /t 2 >nul
-call ".\Start-All.bat"
+call ".\scripts\Start-All.bat"

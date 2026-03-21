@@ -32,7 +32,7 @@ BANGKOK_TZ = "Asia/Bangkok"
 
 TXT = {
     "th": {
-        "title": "ศูนย์ควบคุม PyTrade",
+        "title": "ศูนย์จัดการระบบ",
         "tab_dashboard": "แดชบอร์ด",
         "tab_performance": "ผลงาน",
         "tab_portfolio": "สถานะพอร์ต",
@@ -59,36 +59,36 @@ TXT = {
         "refresh_hint": "เมื่อเปิด ระบบจะรีโหลดหน้าเว็บอัตโนมัติทุก N วินาที",
         "refresh_paused": "หน้านี้หยุดรีเฟรชอัตโนมัติชั่วคราว เพื่อให้อ่านข้อมูลได้ต่อเนื่อง",
         "overview": "ภาพรวมการเทรด",
-        "open": "ออเดอร์เปิด",
+        "open": "ธุรกรรมเปิด",
         "sent": "ส่งแล้ว",
         "closed": "ปิดแล้ว",
         "failed": "ล้มเหลว",
         "today_pnl": "กำไร/ขาดทุน วันนี้",
         "net_pnl_all": "กำไร/ขาดทุนสะสม",
-        "cleanup": "ล้างข้อมูลรบกวน",
+        "cleanup": "ควบคุมข้อมูล",
         "del_below": "ลบ skipped: below_min_execute_category",
         "del_cooldown": "ลบ skipped: cooldown_active",
         "reset_loss_guard": "รีเซ็ต Daily Loss Guard (UTC)",
         "loss_guard_reset_at": "รีเซ็ตล่าสุด (UTC)",
         "loss_guard_effective": "Realized Loss หลังรีเซ็ต",
         "equity": "กราฟ Equity Curve (จากออเดอร์ปิด)",
-        "orders": "ออเดอร์ล่าสุด",
+        "orders": "ธุรกรรมล่าสุด",
         "signals": "สัญญาณล่าสุด",
         "events": "เหตุการณ์สแกนล่าสุด",
-        "manual_orders": "ออเดอร์ที่เปิด/ปิดเอง (MT5)",
-        "manual_open_positions": "ออเดอร์เปิดเอง (ยังถืออยู่)",
-        "bot_open_positions": "ออเดอร์บอทที่เปิดอยู่",
-        "bot_open_positions_live": "ออเดอร์บอทที่เปิดอยู่ (MT5 สด)",
-        "bot_open_none": "ไม่มีออเดอร์บอทที่เปิดอยู่",
-        "manual_closed_deals": "ออเดอร์ปิดเองล่าสุด",
-        "manual_none_open": "ไม่พบออเดอร์เปิดเอง",
-        "manual_none_closed": "ไม่พบออเดอร์ปิดเองล่าสุด",
+        "manual_orders": "ธุรกรรมที่ดำเนินการเอง (ระบบ)",
+        "manual_open_positions": "ธุรกรรมเปิดเอง (ยังถืออยู่)",
+        "bot_open_positions": "ธุรกรรมระบบที่เปิดอยู่",
+        "bot_open_positions_live": "ธุรกรรมระบบที่เปิดอยู่ (ตาม Sync)",
+        "bot_open_none": "ไม่มีธุรกรรมระบบที่เปิดอยู่",
+        "manual_closed_deals": "ธุรกรรมปิดเองล่าสุด",
+        "manual_none_open": "ไม่พบธุรกรรมเปิดเอง",
+        "manual_none_closed": "ไม่พบธุรกรรมปิดเองล่าสุด",
         "manual_days": "ดูย้อนหลัง (วัน)",
         "manual_error": "ดึงข้อมูลออเดอร์เปิด/ปิดเองไม่สำเร็จ",
-        "sizing_title": "สถานะคำนวณขนาดไม้",
+        "sizing_title": "สถานะการคำนวณขนาด",
         "sizing_mode": "โหมดคำนวณ",
         "sizing_last_risk": "Risk ล่าสุด",
-        "sizing_last_volume": "Lot ล่าสุด",
+        "sizing_last_volume": "ปริมาณล่าสุด",
         "sizing_last_symbol": "สัญลักษณ์ล่าสุด",
         "sizing_dynamic": "Dynamic จาก MT5",
         "sizing_static": "Static จากแผนสัญญาณ",
@@ -116,13 +116,13 @@ TXT = {
         "perf_pnl_curve": "กราฟกำไร/ขาดทุนสะสม",
         "perf_no_data": "ไม่มีข้อมูลตามตัวกรอง",
         "perf_download": "ดาวน์โหลดผลลัพธ์ (CSV)",
-        "no_orders": "ยังไม่มีออเดอร์",
+        "no_orders": "ยังไม่มีธุรกรรม",
         "no_signals": "ยังไม่มีสัญญาณ",
         "no_events": "ยังไม่มีเหตุการณ์สแกน",
-        "no_closed": "ยังไม่มีออเดอร์ที่ปิดพร้อม PnL",
-        "order_symbol": "สัญลักษณ์ออเดอร์",
-        "order_status": "สถานะออเดอร์",
-        "order_reason": "เหตุผลออเดอร์",
+        "no_closed": "ยังไม่มีธุรกรรมที่ปิดพร้อมผลลัพธ์",
+        "order_symbol": "สัญลักษณ์ธุรกรรม",
+        "order_status": "สถานะธุรกรรม",
+        "order_reason": "เหตุผลธุรกรรม",
         "signal_symbol": "สัญลักษณ์สัญญาณ",
         "signal_category": "หมวดสัญญาณ",
         "signal_direction": "ทิศทาง",
@@ -257,7 +257,7 @@ TXT = {
         "access_admin_only": "ส่วนนี้เปิดได้เฉพาะผู้ดูแลระบบ",
     },
     "en": {
-        "title": "PyTrade Control Center",
+        "title": "System Manager",
         "tab_dashboard": "Dashboard",
         "tab_performance": "Performance",
         "tab_portfolio": "Portfolio",
@@ -284,30 +284,30 @@ TXT = {
         "refresh_hint": "When enabled, this page auto-reloads every N seconds.",
         "refresh_paused": "Auto refresh is paused on this page so you can read without interruption.",
         "overview": "Trading Overview",
-        "open": "Open",
+        "open": "Open Transactions",
         "sent": "Sent",
         "closed": "Closed",
         "failed": "Failed",
         "today_pnl": "Today PnL",
         "net_pnl_all": "Net PnL",
-        "cleanup": "Cleanup",
+        "cleanup": "Data Cleanup",
         "del_below": "Delete skipped: below_min_execute_category",
         "del_cooldown": "Delete skipped: cooldown_active",
         "reset_loss_guard": "Reset Daily Loss Guard (UTC)",
         "loss_guard_reset_at": "Last reset (UTC)",
         "loss_guard_effective": "Realized Loss after reset",
         "equity": "Equity Curve (Closed PnL)",
-        "orders": "Recent Orders",
+        "orders": "Recent Transactions",
         "signals": "Recent Signals",
         "events": "Recent Scan Events",
-        "manual_orders": "Manual Orders (MT5)",
-        "manual_open_positions": "Manual Open Positions",
-        "bot_open_positions": "Bot Open Positions",
-        "bot_open_positions_live": "Bot Open Positions (Live MT5)",
-        "bot_open_none": "No open bot positions",
-        "manual_closed_deals": "Recent Manual Closed Deals",
-        "manual_none_open": "No manual open positions",
-        "manual_none_closed": "No recent manual closed deals",
+        "manual_orders": "Manual Transactions (System)",
+        "manual_open_positions": "Manual Open Transactions",
+        "bot_open_positions": "System Open Transactions",
+        "bot_open_positions_live": "System Open Transactions (Live Sync)",
+        "bot_open_none": "No open system transactions",
+        "manual_closed_deals": "Recent Manual Closed Transactions",
+        "manual_none_open": "No manual open transactions",
+        "manual_none_closed": "No recent manual closed transactions",
         "manual_days": "History lookback (days)",
         "manual_error": "Failed to fetch manual order data",
         "sizing_title": "Position Sizing Status",
@@ -341,13 +341,13 @@ TXT = {
         "perf_pnl_curve": "Cumulative PnL Curve",
         "perf_no_data": "No data for selected filters",
         "perf_download": "Download filtered results (CSV)",
-        "no_orders": "No orders yet",
+        "no_orders": "No transactions yet",
         "no_signals": "No signals yet",
         "no_events": "No scan events",
-        "no_closed": "No closed orders with PnL",
-        "order_symbol": "Order Symbol",
-        "order_status": "Order Status",
-        "order_reason": "Order Reason",
+        "no_closed": "No closed transactions with results",
+        "order_symbol": "Transaction Symbol",
+        "order_status": "Transaction Status",
+        "order_reason": "Transaction Reason",
         "signal_symbol": "Signal Symbol",
         "signal_category": "Signal Category",
         "signal_direction": "Direction",
@@ -571,6 +571,487 @@ HELP = {
 }
 
 
+# ============================================================================
+# PAGE CONFIG & STYLING
+# ============================================================================
+
+def _setup_page_config() -> None:
+    """Configure Streamlit page with modern styling"""
+    st.set_page_config(
+        page_title="System Manager",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded",
+        menu_items={
+            "Get Help": "https://github.com/system-manager",
+            "Report a bug": "https://github.com/system-manager/issues",
+            "About": "## System Manager v1.0 - Professional Automation Platform",
+        }
+    )
+    
+    # Modern CSS styling - Dark Professional Mode
+    st.markdown("""
+    <style>
+    /* Global Styles - Professional Neutral Palette */
+    :root {
+        --primary-color: #CCCCCC;
+        --success-color: #FFFFFF;
+        --danger-color: #FF6B6B;
+        --warning-color: #FFB266;
+        --dark-bg: #0a0e27;
+        --card-bg: #1a2332;
+        --border-color: #3a3a3a;
+    }
+    
+    /* Main Container */
+    .main {
+        padding: 0px;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1a1a 0%, #252525 100%);
+        border-right: 2px solid var(--border-color);
+    }
+    
+    /* Header Styling - Professional Dark Mode */
+    .header-main {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        color: #EEEEEE;
+        padding: 30px 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
+        text-align: center;
+        border: 2px solid #4a4a4a;
+    }
+    
+    .header-main h1 {
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #FFFFFF;
+    }
+    
+    .header-main p {
+        margin: 5px 0 0 0;
+        font-size: 0.95em;
+        opacity: 0.85;
+        color: #CCCCCC;
+    }
+    
+    /* Card Styling - Professional Dark Mode */
+    .metric-card {
+        background: linear-gradient(135deg, #2a2a2a 0%, #353535 100%);
+        border: 2px solid #4a4a4a;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        border-color: #6a6a6a;
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.08);
+        transform: translateY(-2px);
+    }
+    
+    .metric-card p,
+    .metric-card span,
+    .metric-card div {
+        color: #DDDDDD !important;
+        font-weight: 500;
+    }
+    
+    .metric-label {
+        font-size: 0.85em;
+        color: #AAAAAA;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    
+    .metric-value {
+        font-size: 1.8em;
+        font-weight: 700;
+        color: #FFFFFF;
+    }
+    
+    .metric-value.positive {
+        color: #FFFFFF;
+    }
+    
+    .metric-value.negative {
+        color: #FF8888;
+    }
+    
+    /* Tab Styling - Dark Mode */
+    [data-baseweb="tab-list"] {
+        border-bottom: 2px solid #4a4a4a;
+    }
+    
+    [data-testid="stTab"] {
+        border-radius: 8px 8px 0px 0px;
+        background: transparent;
+    }
+    
+    [data-testid="stTab"] p {
+        font-weight: 700;
+        color: #999999 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    [data-testid="stTab"]:not([aria-selected="false"]) {
+        background: linear-gradient(180deg, rgba(100, 100, 100, 0.2) 0%, rgba(100, 100, 100, 0.1) 100%);
+        border-bottom: 3px solid #CCCCCC;
+    }
+    
+    [data-testid="stTab"]:not([aria-selected="false"]) p {
+        color: #FFFFFF !important;
+        font-weight: 700;
+    }
+    
+    /* Button Styling - Dark Professional */
+    .stButton > button {
+        background: linear-gradient(135deg, #3a3a3a 0%, #4a4a4a 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid #5a5a5a !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        font-weight: 700 !important;
+        font-size: 0.95em !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.3s ease !important;
+        cursor: pointer !important;
+        text-transform: uppercase !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #4a4a4a 0%, #5a5a5a 100%) !important;
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.1) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    .stButton > button:active {
+        transform: translateY(0px) !important;
+    }
+    
+    /* All Button Types - Force Dark Mode */
+    button {
+        background: linear-gradient(135deg, #3a3a3a 0%, #4a4a4a 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid #5a5a5a !important;
+        font-weight: 700 !important;
+    }
+    
+    button:hover {
+        background: linear-gradient(135deg, #4a4a4a 0%, #5a5a5a 100%) !important;
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* Secondary Button */
+    button[kind="secondary"] {
+        background: linear-gradient(135deg, #4a4a4a 0%, #5a5a5a 100%) !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        border: 1px solid #6a6a6a !important;
+    }
+    
+    button[kind="secondary"]:hover {
+        background: linear-gradient(135deg, #5a5a5a 0%, #6a6a6a 100%) !important;
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* Danger Button - Softer Red */
+    button[kind="tertiary"] {
+        background: linear-gradient(135deg, #8B4444 0%, #664444 100%) !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        border: 1px solid #7a5a5a !important;
+    }
+    
+    button[kind="tertiary"]:hover {
+        background: linear-gradient(135deg, #9B5454 0%, #774444 100%) !important;
+        box-shadow: 0 6px 20px rgba(255, 100, 100, 0.2) !important;
+    }
+    
+    /* Sidebar Text */
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div {
+        color: #CCCCCC !important;
+    }
+    
+    [data-testid="stSidebar"] button {
+        color: #FFFFFF !important;
+    }
+    
+    /* Data Table Styling */
+    .stDataFrame {
+        border-collapse: collapse;
+    }
+    
+    .stDataFrame thead {
+        background: linear-gradient(90deg, rgba(100, 100, 100, 0.2) 0%, rgba(100, 100, 100, 0.1) 100%);
+        border-bottom: 2px solid #6a6a6a;
+    }
+    
+    .stDataFrame thead th {
+        color: #FFFFFF !important;
+        font-weight: 700;
+    }
+    
+    .stDataFrame tbody td {
+        color: #DDDDDD !important;
+    }
+    
+    .stDataFrame tbody tr:hover {
+        background-color: rgba(100, 100, 100, 0.1);
+    }
+    
+    /* Input Fields */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > select,
+    .stTextArea > div > div > textarea {
+        background: #2a2a2a;
+        border: 2px solid #4a4a4a;
+        color: #FFFFFF !important;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 0.95em;
+        font-weight: 500;
+    }
+    
+    .stTextInput > div > div > input::placeholder,
+    .stNumberInput > div > div > input::placeholder,
+    .stTextArea > div > div > textarea::placeholder {
+        color: #888888 !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #CCCCCC;
+        box-shadow: 0 0 10px rgba(200, 200, 200, 0.2);
+    }
+    
+    /* Expander Styling */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #353535 0%, #2a2a2a 100%);
+        border: 2px solid #4a4a4a;
+        border-radius: 8px;
+        padding: 15px;
+        font-weight: 700;
+        color: #CCCCCC !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        border-color: #6a6a6a;
+        background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
+        color: #FFFFFF !important;
+    }
+    
+    .streamlit-expanderHeader p {
+        color: #CCCCCC !important;
+        font-weight: 700;
+    }
+    
+    /* Status Indicators */
+    .status-running {
+        color: var(--success-color) !important;
+        font-weight: 700;
+    }
+    
+    .status-stopped {
+        color: var(--danger-color) !important;
+        font-weight: 700;
+    }
+    
+    .status-warning {
+        color: var(--warning-color) !important;
+        font-weight: 700;
+    }
+    
+    /* Caption and Label Text */
+    .stCaption {
+        color: #AABBCC !important;
+        font-weight: 500;
+    }
+    
+    .stSelectboxOption {
+        color: #DDDDDD !important;
+    }
+    
+    /* Metric and Number Display */
+    .stMetric label {
+        color: #CCCCCC !important;
+        font-weight: 700;
+    }
+    
+    .stMetric > div > div {
+        color: #FFFFFF !important;
+        font-weight: 700;
+    }
+    
+    /* Alert Boxes */
+    .stSuccess {
+        background: linear-gradient(135deg, rgba(100, 255, 100, 0.1) 0%, rgba(80, 200, 80, 0.1) 100%);
+        border: 2px solid #88FF88;
+        border-radius: 8px;
+    }
+    
+    .stSuccess p {
+        color: #CCFFCC !important;
+        font-weight: 600;
+    }
+    
+    .stError {
+        background: linear-gradient(135deg, rgba(255, 100, 100, 0.1) 0%, rgba(220, 50, 50, 0.1) 100%);
+        border: 2px solid #FF8888;
+        border-radius: 8px;
+    }
+    
+    .stError p {
+        color: #FFCCCC !important;
+        font-weight: 600;
+    }
+    
+    .stWarning {
+        background: linear-gradient(135deg, rgba(255, 180, 100, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
+        border: 2px solid #FFB266;
+        border-radius: 8px;
+    }
+    
+    .stWarning p {
+        color: #FFD9B3 !important;
+        font-weight: 600;
+    }
+    
+    .stInfo {
+        background: linear-gradient(135deg, rgba(150, 150, 150, 0.1) 0%, rgba(120, 120, 120, 0.1) 100%);
+        border: 2px solid #CCCCCC;
+        border-radius: 8px;
+    }
+    
+    .stInfo p {
+        color: #DDDDDD !important;
+        font-weight: 600;
+    }
+    
+    /* Form Input Labels */
+    .stSelectbox label,
+    .stTextInput label,
+    .stNumberInput label,
+    .stPasswordInput label,
+    .stTextArea label,
+    .stSlider label,
+    .stCheckbox label,
+    .stRadio label,
+    .stDateInput label,
+    .stTimeInput label,
+    .stSelectSlider label {
+        color: #CCCCCC !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Code Block */
+    .stCode {
+        background: rgba(20, 20, 20, 0.9) !important;
+        border: 2px solid #5a5a5a !important;
+        border-radius: 8px;
+    }
+    
+    .stCode code {
+        color: #CCCCCC !important;
+        font-weight: 500;
+    }
+    
+    /* Progress Bar */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, #CCCCCC 0%, #999999 100%);
+    }
+    
+    /* Column Headers in Dataframe */
+    thead th {
+        background: linear-gradient(135deg, #4a4a4a 0%, #5a5a5a 100%) !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        padding: 12px !important;
+        border-color: #6a6a6a !important;
+    }
+    
+    /* Dataframe Rows */
+    tbody td {
+        color: #DDDDDD !important;
+        border-color: #3a3a3a !important;
+    }
+    
+    tbody tr:hover {
+        background: rgba(100, 100, 100, 0.2) !important;
+    }
+    
+    /* Divider */
+    .stDivider {
+        border-color: #4a4a4a;
+    }
+    
+    /* Text and Typography */
+    h1, h2, h3, h4, h5, h6 {
+        color: #FFFFFF !important;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    
+    p, span, div {
+        color: #DDDDDD !important;
+    }
+    
+    /* Link Styling */
+    a {
+        color: #FFFFFF !important;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    a:hover {
+        color: #FFB800 !important;
+        text-decoration: underline;
+    }
+    
+    /* Code Styling */
+    code {
+        background: #243447;
+        border-radius: 4px;
+        padding: 2px 6px;
+        color: #FFD700;
+        font-family: 'Monaco', 'Menlo', monospace;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .header-main h1 {
+            font-size: 2em;
+        }
+        
+        .metric-card {
+            padding: 15px;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+_setup_page_config()
+
+
 def t(key: str) -> str:
     lang = st.session_state.get("lang", "th")
     return TXT.get(lang, TXT["th"]).get(key, key)
@@ -587,7 +1068,7 @@ def _init_ui_state_from_query() -> None:
     try:
         qp = st.query_params
         if "auto_refresh" not in st.session_state:
-            st.session_state["auto_refresh"] = _parse_bool_text(qp.get("ar"), default=False)
+            st.session_state["auto_refresh"] = _parse_bool_text(qp.get("ar"), default=True)
 
         if "refresh_sec" not in st.session_state:
             rs_raw = qp.get("rs")
@@ -601,7 +1082,7 @@ def _init_ui_state_from_query() -> None:
             st.session_state["active_tab"] = str(qp.get("tab", "dashboard"))
     except Exception:
         if "auto_refresh" not in st.session_state:
-            st.session_state["auto_refresh"] = False
+            st.session_state["auto_refresh"] = True
         if "refresh_sec" not in st.session_state:
             st.session_state["refresh_sec"] = 15
         if "active_tab" not in st.session_state:
@@ -944,7 +1425,7 @@ def _build_deploy_profile_lines(env: dict[str, str], include_sensitive: bool) ->
     keys = list(DEPLOY_BASE_KEYS)
     if include_sensitive:
         keys += DEPLOY_SENSITIVE_KEYS
-    lines = ["# Generated by PyTrade Deploy Wizard", f"# UTC: {datetime.now(timezone.utc).isoformat()}"]
+    lines = ["# Generated by System Manager Deploy Wizard", f"# UTC: {datetime.now(timezone.utc).isoformat()}"]
     for key in keys:
         if key in env:
             lines.append(f"{key}={env[key]}")
@@ -1036,7 +1517,7 @@ if ($manifest.start_dashboard) {
 Write-Host "Deploy apply เสร็จสิ้น" -ForegroundColor Green
 """
 
-    readme_text = f"""PyTrade Deploy Package
+    readme_text = f"""System Manager Deploy Package
 Machine: {machine_name}
 Generated(UTC): {manifest["generated_at_utc"]}
 
@@ -1060,7 +1541,7 @@ Generated(UTC): {manifest["generated_at_utc"]}
         zf.writestr("install_profile.ps1", installer_ps1.encode("utf-8"))
         zf.writestr("README_DEPLOY.txt", readme_text.encode("utf-8"))
 
-    file_name = f"pytrade_deploy_{safe_machine}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
+    file_name = f"system_manager_deploy_{safe_machine}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
     return mem.getvalue(), file_name, profile_text
 
 
@@ -1277,7 +1758,7 @@ def _build_support_bundle(env: dict[str, str], db_path: Path) -> tuple[bytes, st
         zf.writestr("daemon_tail.log", _tail_text(ROOT / "logs" / "daemon.log", lines=50).encode("utf-8"))
         zf.writestr("dashboard_tail.log", _tail_text(ROOT / "logs" / "dashboard.log", lines=50).encode("utf-8"))
 
-    file_name = f"pytrade_support_bundle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
+    file_name = f"system_manager_support_bundle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
     return mem.getvalue(), file_name, summary
 
 
@@ -1892,52 +2373,66 @@ def _render_controls(db_path: Path, is_admin: bool) -> None:
 
 
 def _render_dashboard(db_path: Path, is_admin: bool) -> None:
-    st.subheader(t("overview"))
+    """Render main trading dashboard with modern UI"""
+    st.subheader("📊 " + t("overview"))
+    
     env = _load_env_map()
     bot_open_df, bot_open_err = _fetch_bot_mt5_positions(env, limit=20)
-    st.caption(
-        f"{t('active_mode')}: "
-        f"{t('profile_now')}=`{env.get('SIGNAL_PROFILE', 'custom')}` | "
-        f"{t('filter_mode_now')}=`{env.get('HARD_FILTER_MODE', 'strict')}` | "
-        f"{t('alert_cat_now')}=`{env.get('MIN_ALERT_CATEGORY', 'alert')}` | "
-        f"{t('exec_cat_now')}=`{env.get('MIN_EXECUTE_CATEGORY', 'strong')}`"
-    )
+    
+    # Status bar with current configuration
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #1a2332 0%, #243447 100%);
+                border: 2px solid #CCCCCC;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 20px;">
+        <p style="margin: 0; color: #888; font-size: 0.85em;">
+            <strong style="color: #CCCCCC;">Active Configuration:</strong><br>
+            Profile: <code>""" + env.get('SIGNAL_PROFILE', 'custom') + """</code> | 
+            Filter Mode: <code>""" + env.get('HARD_FILTER_MODE', 'strict') + """</code> | 
+            Alert Category: <code>""" + env.get('MIN_ALERT_CATEGORY', 'alert') + """</code> | 
+            Execution Category: <code>""" + env.get('MIN_EXECUTE_CATEGORY', 'strong') + """</code>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Key metrics with modern card design
     live_open_count = None if bot_open_err else len(bot_open_df.index)
     m = _metrics(db_path, live_open_count=live_open_count)
     pnl_value = float(m["today_pnl"])
     net_pnl_all = float(m.get("net_pnl_all", 0.0))
     pnl_text = f"{pnl_value:+.2f}" if abs(pnl_value) > 1e-12 else "0.00"
     net_pnl_text = f"{net_pnl_all:+.2f}" if abs(net_pnl_all) > 1e-12 else "0.00"
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric(t("open"), m["open"])
-    c2.metric(t("sent"), m["sent"])
-    c3.metric(t("closed"), m["closed"])
-    c4.metric(t("failed"), m["failed"])
-    c5.metric(t("today_pnl"), pnl_text)
-    c6.metric(t("net_pnl_all"), net_pnl_text)
+    
+    # Metrics in modern cards
+    cols = st.columns(6, gap="medium")
+    
+    metrics_data = [
+        (t("open"), m["open"], "🟢"),
+        (t("sent"), m["sent"], "📤"),
+        (t("closed"), m["closed"], "✅"),
+        (t("failed"), m["failed"], "❌"),
+        (t("today_pnl"), pnl_text, "📈" if pnl_value >= 0 else "📉"),
+        (t("net_pnl_all"), net_pnl_text, "💰" if net_pnl_all >= 0 else "📊"),
+    ]
+    
+    for col, (label, value, icon) in zip(cols, metrics_data):
+        with col:
+            color = "#FFFFFF" if label != t("failed") and (label != t("today_pnl") and label != t("net_pnl_all") or float(value.replace(",", ".")) >= 0) else "#CCCCCC" if label == t("net_pnl_all") else "#FF6B6B" if label == t("failed") else "#FFB266"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div style="font-size: 2em; margin-bottom: 10px;">{icon}</div>
+                    <div class="metric-label">{label}</div>
+                    <div class="metric-value" style="color: {color};">{value}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    total_orders = int(m["sent"]) + int(m["closed"]) + int(m["failed"])
-    if total_orders == 0:
-        mt5_summary, mt5_summary_err = _mt5_bot_activity_summary(env, lookback_days=30)
-        if not mt5_summary_err and (mt5_summary.get("open", 0) > 0 or mt5_summary.get("closed", 0) > 0):
-            st.warning(
-                f"{t('dashboard_import_hint')}: "
-                f"open={mt5_summary.get('open', 0)} closed={mt5_summary.get('closed', 0)}"
-            )
-            if is_admin and st.button(t("health_import_mt5_history"), key="dashboard_import_mt5_history", width="stretch"):
-                stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=30)
-                if error:
-                    st.error(f"{t('health_import_mt5_fail')}: {error}")
-                else:
-                    st.success(
-                        f"{t('dashboard_import_done')}: "
-                        f"open={stats.get('open_imported', 0)} "
-                        f"closed={stats.get('closed_imported', 0)} "
-                        f"skipped={stats.get('skipped', 0)}"
-                    )
-                    st.rerun()
-
-    st.caption(t("sizing_title"))
+    # Position sizing section
+    st.markdown("---")
+    st.subheader("💼 " + t("sizing_title"))
+    
     sizing_mode = t("sizing_dynamic") if _parse_bool_env(env, "USE_MT5_BALANCE_FOR_SIZING", True) else t("sizing_static")
     sizing_base = env.get("RISK_BALANCE_SOURCE", "equity")
     last_sent = _query_df(
@@ -1960,26 +2455,35 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
             LIMIT 1
             """,
         )
-    s1, s2, s3, s4 = st.columns(4)
-    s1.metric(t("sizing_mode"), f"{sizing_mode} ({sizing_base})")
-    if last_sent.empty:
-        s2.metric(t("sizing_last_symbol"), "-")
-        s3.metric(t("sizing_last_risk"), "-")
-        s4.metric(t("sizing_last_volume"), "-")
-    else:
-        row = last_sent.iloc[0]
-        symbol_text = str(row.get("normalized_symbol") or row.get("symbol") or "-")
-        risk_text = f"{float(row.get('risk_amount') or 0.0):.2f}"
-        lot_text = f"{float(row.get('volume') or 0.0):.4f}"
-        s2.metric(t("sizing_last_symbol"), symbol_text)
-        s3.metric(t("sizing_last_risk"), risk_text)
-        s4.metric(t("sizing_last_volume"), lot_text)
+    
+    sizing_cols = st.columns(4, gap="medium")
+    sizing_metrics = [
+        (t("sizing_mode"), f"{sizing_mode} ({sizing_base})", "⚙️"),
+        (t("sizing_last_symbol"), str(last_sent.iloc[0].get("normalized_symbol") or last_sent.iloc[0].get("symbol") or "-") if not last_sent.empty else "-", "📍"),
+        (t("sizing_last_risk"), f"{float(last_sent.iloc[0].get('risk_amount') or 0.0):.2f}" if not last_sent.empty else "-", "💵"),
+        (t("sizing_last_volume"), f"{float(last_sent.iloc[0].get('volume') or 0.0):.4f}" if not last_sent.empty else "-", "📦"),
+    ]
+    
+    for col, (label, value, icon) in zip(sizing_cols, sizing_metrics):
+        with col:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.8em; margin-bottom: 8px;">{icon}</div>
+                    <div class="metric-label">{label}</div>
+                    <div style="font-size: 1.3em; font-weight: 600; color: #CCCCCC;">{value}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.caption(t("bot_open_positions_live"))
+    # Live MT5 positions
+    st.markdown("---")
+    st.subheader("📍 " + t("bot_open_positions_live"))
+    
     if bot_open_err:
-        st.warning(f"{t('mt5_error')}: {bot_open_err}")
+        st.warning(f"⚠️ {t('mt5_error')}: {bot_open_err}")
     elif bot_open_df.empty:
-        st.info(t("bot_open_none"))
+        st.info(f"✅ {t('bot_open_none')}")
     else:
         open_cols = [
             c
@@ -1998,37 +2502,69 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
             ]
             if c in bot_open_df.columns
         ]
-        st.dataframe(bot_open_df[open_cols], width="stretch", height=220)
+        
+        # Format dataframe for display
+        display_df = bot_open_df[open_cols].copy()
+        st.markdown("""
+        <style>
+        .stDataFrame {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        st.dataframe(display_df, use_container_width=True, height=250)
 
-    st.subheader(t("cleanup"))
+    # Admin cleanup and loss guard
     if is_admin:
-        cc1, cc2, cc3 = st.columns(3)
-        with cc1:
-            if st.button(t("del_below"), width="stretch"):
+        st.markdown("---")
+        st.subheader("🧹 " + t("cleanup"))
+        
+        cleanup_cols = st.columns(3, gap="small")
+        with cleanup_cols[0]:
+            if st.button("🗑️ " + t("del_below"), use_container_width=True):
                 _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='below_min_execute_category'")
-                st.success("OK")
-        with cc2:
-            if st.button(t("del_cooldown"), width="stretch"):
+                st.success("✅ Cleaned!")
+        
+        with cleanup_cols[1]:
+            if st.button("🗑️ " + t("del_cooldown"), use_container_width=True):
                 _exec_sql(db_path, "DELETE FROM orders WHERE status='skipped' AND reason='cooldown_active'")
-                st.success("OK")
-        with cc3:
-            if st.button(t("reset_loss_guard"), width="stretch"):
+                st.success("✅ Cleaned!")
+        
+        with cleanup_cols[2]:
+            if st.button("🔄 " + t("reset_loss_guard"), use_container_width=True):
                 if db_path.exists():
                     db = SignalDB(str(db_path))
                     reset_at = db.reset_daily_loss_guard()
-                    st.success(f"OK: {reset_at}")
+                    st.success(f"✅ Reset at: {reset_at}")
                 else:
-                    st.warning("DB not found")
-    else:
-        st.info(t("access_admin_only"))
-
+                    st.warning("⚠️ DB not found")
+    
+    # Loss guard status
     if db_path.exists():
+        st.markdown("---")
         db = SignalDB(str(db_path))
         reset_at = db.get_runtime_state("daily_loss_reset_at") or "-"
         effective_loss = db.today_realized_loss()
-        i1, i2 = st.columns(2)
-        i1.caption(f"{t('loss_guard_reset_at')}: {reset_at}")
-        i2.caption(f"{t('loss_guard_effective')}: {effective_loss:.2f}")
+        
+        guard_cols = st.columns(2, gap="medium")
+        with guard_cols[0]:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">🔐 {t('loss_guard_reset_at')}</div>
+                <div style="font-size: 1.1em; color: #CCCCCC; margin-top: 8px;">{reset_at}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with guard_cols[1]:
+            loss_color = "#FFFFFF" if effective_loss >= 0 else "#FF6B6B"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">📊 {t('loss_guard_effective')}</div>
+                <div style="font-size: 1.1em; color: {loss_color}; margin-top: 8px;">{effective_loss:.2f}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.subheader(t("equity"))
     pnl_df = _query_df(
@@ -2039,9 +2575,12 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
         st.info(t("no_closed"))
     else:
         pnl_df["equity_curve"] = pnl_df["pnl"].cumsum()
-        st.line_chart(pnl_df[["id", "equity_curve"]].set_index("id"), width="stretch", height=220)
+        st.markdown("---")
+        st.subheader("📈 " + t("equity"))
+        st.line_chart(pnl_df[["id", "equity_curve"]].set_index("id"), width="stretch", height=300)
 
-    st.subheader(t("orders"))
+    st.markdown("---")
+    st.subheader("📋 " + t("orders"))
     orders = _query_df(
         db_path,
         """
@@ -2057,16 +2596,28 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
         },
     )
     if orders.empty:
-        st.info(t("no_orders"))
+        st.info("✅ " + t("no_orders"))
     else:
         all_label = t("all")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            f_symbol = st.selectbox(t("order_symbol"), [all_label] + sorted(orders["symbol"].dropna().astype(str).unique().tolist()))
-        with c2:
-            f_status = st.selectbox(t("order_status"), [all_label] + sorted(orders["status"].dropna().astype(str).unique().tolist()))
-        with c3:
-            f_reason = st.selectbox(t("order_reason"), [all_label] + sorted(orders["reason"].dropna().astype(str).unique().tolist()))
+        filter_cols = st.columns(3, gap="medium")
+        with filter_cols[0]:
+            f_symbol = st.selectbox(
+                t("order_symbol"), 
+                [all_label] + sorted(orders["symbol"].dropna().astype(str).unique().tolist()),
+                key="order_symbol_filter"
+            )
+        with filter_cols[1]:
+            f_status = st.selectbox(
+                t("order_status"), 
+                [all_label] + sorted(orders["status"].dropna().astype(str).unique().tolist()),
+                key="order_status_filter"
+            )
+        with filter_cols[2]:
+            f_reason = st.selectbox(
+                t("order_reason"), 
+                [all_label] + sorted(orders["reason"].dropna().astype(str).unique().tolist()),
+                key="order_reason_filter"
+            )
 
         view = orders.copy()
         if f_symbol != all_label:
@@ -2076,26 +2627,52 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
         if f_reason != all_label:
             view = view[view["reason"] == f_reason]
 
-        st.dataframe(view, width="stretch", height=320)
-        st.download_button(t("download_orders"), data=view.to_csv(index=False), file_name="orders_filtered.csv", mime="text/csv")
+        st.dataframe(view, use_container_width=True, height=350)
+        
+        # Download button with better styling
+        button_cols = st.columns([1, 1, 3], gap="small")
+        with button_cols[0]:
+            st.download_button(
+                "⬇️ CSV",
+                data=view.to_csv(index=False),
+                file_name="orders_filtered.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        with button_cols[1]:
+            if st.button("🔄 Refresh", use_container_width=True):
+                st.rerun()
 
-    st.subheader(t("signals"))
+    st.markdown("---")
+    st.subheader("🔔 " + t("signals"))
     signals = _query_df(
         db_path,
         "SELECT id, timestamp, symbol, direction, score, category, hard_filters_passed FROM signals ORDER BY id DESC LIMIT 200",
     )
     signals = _add_thai_time_columns(signals, {"timestamp": "timestamp_th"})
     if signals.empty:
-        st.info(t("no_signals"))
+        st.info("✅ " + t("no_signals"))
     else:
         all_label = t("all")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            s_symbol = st.selectbox(t("signal_symbol"), [all_label] + sorted(signals["symbol"].dropna().astype(str).unique().tolist()))
-        with c2:
-            s_cat = st.selectbox(t("signal_category"), [all_label] + sorted(signals["category"].dropna().astype(str).unique().tolist()))
-        with c3:
-            s_dir = st.selectbox(t("signal_direction"), [all_label] + sorted(signals["direction"].dropna().astype(str).unique().tolist()))
+        signal_filter_cols = st.columns(3, gap="medium")
+        with signal_filter_cols[0]:
+            s_symbol = st.selectbox(
+                t("signal_symbol"), 
+                [all_label] + sorted(signals["symbol"].dropna().astype(str).unique().tolist()),
+                key="signal_symbol_filter"
+            )
+        with signal_filter_cols[1]:
+            s_cat = st.selectbox(
+                t("signal_category"), 
+                [all_label] + sorted(signals["category"].dropna().astype(str).unique().tolist()),
+                key="signal_cat_filter"
+            )
+        with signal_filter_cols[2]:
+            s_dir = st.selectbox(
+                t("signal_direction"), 
+                [all_label] + sorted(signals["direction"].dropna().astype(str).unique().tolist()),
+                key="signal_dir_filter"
+            )
 
         sview = signals.copy()
         if s_symbol != all_label:
@@ -2105,10 +2682,23 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
         if s_dir != all_label:
             sview = sview[sview["direction"] == s_dir]
 
-        st.dataframe(sview, width="stretch", height=320)
-        st.download_button(t("download_signals"), data=sview.to_csv(index=False), file_name="signals_filtered.csv", mime="text/csv")
+        st.dataframe(sview, use_container_width=True, height=350)
+        
+        signal_button_cols = st.columns([1, 1, 3], gap="small")
+        with signal_button_cols[0]:
+            st.download_button(
+                "⬇️ CSV",
+                data=sview.to_csv(index=False),
+                file_name="signals_filtered.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        with signal_button_cols[1]:
+            if st.button("🔄 Refresh", use_container_width=True, key="refresh_signals"):
+                st.rerun()
 
-    st.subheader(t("events"))
+    st.markdown("---")
+    st.subheader("📡 " + t("events"))
     events = _query_df(
         db_path,
         "SELECT id, timestamp, symbol, level, message FROM scan_events ORDER BY id DESC LIMIT 200",
@@ -2141,7 +2731,7 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
 
 
 def _render_performance(db_path: Path) -> None:
-    st.subheader(t("performance_title"))
+    st.subheader("📊 " + t("performance_title"))
     orders = _query_df(
         db_path,
         """
@@ -2172,37 +2762,48 @@ def _render_performance(db_path: Path) -> None:
     default_end = effective_dates.max() if not effective_dates.empty else datetime.now().date()
     default_start = max((effective_dates.min() if not effective_dates.empty else default_end), default_end - timedelta(days=30))
 
+    # Quick range selection
+    st.markdown("**⏱️ " + t("perf_quick_range") + "**")
     quick_opts = [t("perf_today"), t("perf_7d"), t("perf_30d"), t("perf_all")]
-    quick = st.radio(t("perf_quick_range"), quick_opts, horizontal=True, index=1)
+    quick_cols = st.columns(4, gap="small")
+    for idx, (col, opt) in enumerate(zip(quick_cols, quick_opts)):
+        with col:
+            if st.button(opt, use_container_width=True, key=f"quick_perf_{idx}"):
+                st.session_state.quick_perf = opt
+    
+    quick = st.session_state.get("quick_perf", quick_opts[1])
+    st.markdown("---")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
+    # Advanced filters
+    st.markdown("**🔍 " + t("perf_filters") + "**" if "perf_filters" in TXT else "**🔍 Filters**")
+    filt_col1, filt_col2, filt_col3 = st.columns(3, gap="medium")
+    with filt_col1:
         date_range = st.date_input(
             t("perf_date_range"),
             value=(default_start, default_end),
         )
-    with c2:
+    with filt_col2:
         sym_opts = sorted(orders["symbol"].dropna().astype(str).unique().tolist())
         f_symbols = st.multiselect(t("perf_symbol"), options=sym_opts, default=sym_opts)
-    with c3:
+    with filt_col3:
         closed_only = st.checkbox(t("perf_closed_only"), value=False)
 
-    c4, c5, c6, c7, c8 = st.columns(5)
-    with c4:
+    filt_col4, filt_col5, filt_col6, filt_col7, filt_col8 = st.columns(5, gap="medium")
+    with filt_col4:
         status_opts = sorted(orders["status"].dropna().astype(str).unique().tolist())
-        f_status = st.multiselect(t("perf_status"), options=status_opts, default=status_opts)
-    with c5:
+        f_status = st.multiselect(t("perf_status"), options=status_opts, default=status_opts, key="perf_status_filter")
+    with filt_col5:
         dir_opts = sorted(orders["direction"].dropna().astype(str).unique().tolist())
-        f_dirs = st.multiselect(t("perf_direction"), options=dir_opts, default=dir_opts)
-    with c6:
+        f_dirs = st.multiselect(t("perf_direction"), options=dir_opts, default=dir_opts, key="perf_dir_filter")
+    with filt_col6:
         cat_opts = sorted(orders["category"].dropna().astype(str).unique().tolist())
-        f_cat = st.multiselect(t("perf_category"), options=cat_opts, default=cat_opts)
-    with c7:
+        f_cat = st.multiselect(t("perf_category"), options=cat_opts, default=cat_opts, key="perf_cat_filter")
+    with filt_col7:
         reason_opts = sorted(orders["reason"].fillna("").astype(str).unique().tolist())
-        f_reason = st.multiselect(t("perf_reason"), options=reason_opts, default=reason_opts)
-    with c8:
+        f_reason = st.multiselect(t("perf_reason"), options=reason_opts, default=reason_opts, key="perf_reason_filter")
+    with filt_col8:
         profile_opts = sorted(orders["asset_profile"].dropna().astype(str).unique().tolist())
-        f_profiles = st.multiselect(t("perf_asset_profile"), options=profile_opts, default=profile_opts)
+        f_profiles = st.multiselect(t("perf_asset_profile"), options=profile_opts, default=profile_opts, key="perf_profile_filter")
 
     view = orders.copy()
     quick_end = default_end
@@ -2238,6 +2839,7 @@ def _render_performance(db_path: Path) -> None:
         st.info(t("perf_no_data"))
         return
 
+    st.markdown("---")
     closed = view[view["status"] == "closed"].copy()
     closed = closed[closed["pnl"].notna()]
     wins = float((closed["pnl"] > 0).sum())
@@ -2249,19 +2851,38 @@ def _render_performance(db_path: Path) -> None:
     net_pnl = float(closed["pnl"].sum()) if not closed.empty else 0.0
     avg_pnl = float(closed["pnl"].mean()) if not closed.empty else 0.0
 
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric(t("perf_rows"), len(view))
-    k2.metric(t("perf_net_pnl"), f"{net_pnl:+.2f}")
-    k3.metric(t("perf_win_rate"), f"{win_rate:.2f}%")
-    k4.metric(t("perf_profit_factor"), f"{profit_factor:.2f}")
-    k5.metric(t("perf_avg_pnl"), f"{avg_pnl:+.2f}")
+    # Modern metrics display
+    st.markdown("**📈 " + t("perf_summary") + "**" if "perf_summary" in TXT else "**📈 Performance Summary**")
+    m_cols = st.columns(5, gap="medium")
+    metrics_data = [
+        (t("perf_rows"), str(len(view)), "📊"),
+        (t("perf_net_pnl"), f"{net_pnl:+.2f}", "💰" if net_pnl >= 0 else "📉"),
+        (t("perf_win_rate"), f"{win_rate:.1f}%", "✅"),
+        (t("perf_profit_factor"), f"{profit_factor:.2f}", "🎯"),
+        (t("perf_avg_pnl"), f"{avg_pnl:+.2f}", "📊"),
+    ]
+    for col, (label, value, icon) in zip(m_cols, metrics_data):
+        with col:
+            color = "#FFFFFF" if (label == t("perf_net_pnl") and net_pnl >= 0) or label == t("perf_win_rate") or label == t("perf_rows") else "#CCCCCC"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.8em; margin-bottom: 8px;">{icon}</div>
+                    <div class="metric-label">{label}</div>
+                    <div class="metric-value" style="color: {color};">{value}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
     if not closed.empty:
+        st.markdown("---")
         curve = closed.sort_values("closed_at_utc_dt").copy()
         curve["cum_pnl"] = curve["pnl"].cumsum()
-        st.caption(t("perf_pnl_curve"))
-        st.line_chart(curve[["closed_at_utc_dt", "cum_pnl"]].set_index("closed_at_utc_dt"), width="stretch", height=220)
+        st.markdown("**📈 " + t("perf_pnl_curve") + "**")
+        st.line_chart(curve[["closed_at_utc_dt", "cum_pnl"]].set_index("closed_at_utc_dt"), width="stretch", height=300)
 
+        st.markdown("---")
+        st.markdown("**🏢 " + t("perf_profile_summary") + "**")
         profile_summary = (
             closed.groupby("asset_profile", dropna=False)
             .agg(
@@ -2279,9 +2900,10 @@ def _render_performance(db_path: Path) -> None:
         profile_summary["net_pnl"] = profile_summary["net_pnl"].round(2)
         profile_summary["avg_pnl"] = profile_summary["avg_pnl"].round(2)
         profile_summary["win_rate_pct"] = profile_summary["win_rate_pct"].round(2)
-        st.caption(t("perf_profile_summary"))
-        st.dataframe(profile_summary, width="stretch", height=200)
+        st.dataframe(profile_summary, use_container_width=True, height=250)
 
+        st.markdown("---")
+        st.markdown("**🎯 " + t("perf_symbol_summary") + "**")
         symbol_summary = (
             closed.groupby(["asset_profile", "symbol"], dropna=False)
             .agg(
@@ -2300,9 +2922,10 @@ def _render_performance(db_path: Path) -> None:
         symbol_summary["net_pnl"] = symbol_summary["net_pnl"].round(2)
         symbol_summary["avg_pnl"] = symbol_summary["avg_pnl"].round(2)
         symbol_summary["win_rate_pct"] = symbol_summary["win_rate_pct"].round(2)
-        st.caption(t("perf_symbol_summary"))
-        st.dataframe(symbol_summary, width="stretch", height=220)
+        st.dataframe(symbol_summary, use_container_width=True, height=300)
 
+    st.markdown("---")
+    st.markdown("**📋 " + t("perf_detail_orders") + "**" if "perf_detail_orders" in TXT else "**📋 Orders Detail**")
     show_cols = [
         "id",
         "asset_profile",
@@ -2324,33 +2947,72 @@ def _render_performance(db_path: Path) -> None:
     ]
     show_cols = [c for c in show_cols if c in view.columns]
     out = view[show_cols].copy()
-    st.dataframe(out, width="stretch", height=360)
-    st.download_button(t("perf_download"), data=out.to_csv(index=False), file_name="performance_filtered.csv", mime="text/csv")
+    st.dataframe(out, use_container_width=True, height=380)
+    
+    # Download button
+    dl_cols = st.columns([1, 4], gap="small")
+    with dl_cols[0]:
+        st.download_button(
+            "⬇️ CSV",
+            data=out.to_csv(index=False),
+            file_name="performance_filtered.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
 
 def _render_portfolio() -> None:
-    st.subheader(t("portfolio"))
-    if st.button(t("refresh_portfolio")):
-        st.rerun()
+    st.subheader("💼 " + t("portfolio"))
+    
+    refresh_cols = st.columns([1, 4], gap="small")
+    with refresh_cols[0]:
+        if st.button("🔄 " + t("refresh_portfolio"), use_container_width=True):
+            st.rerun()
 
     env = _load_env_map()
     try:
         mt5, error = _mt5_initialize_and_login(env)
         if mt5 is None:
-            st.error(f"{t('mt5_error')}: {error}")
+            st.error(f"❌ {t('mt5_error')}: {error}")
             return
 
         account = mt5.account_info()
         if account:
-            st.write(t("account"))
-            st.json({
+            st.markdown("---")
+            st.markdown("**🏦 " + t("account") + "**")
+            
+            # Account info as modern cards
+            acc_cols = st.columns(6, gap="medium")
+            account_data = {
                 "login": int(getattr(account, "login", 0) or 0),
                 "balance": float(getattr(account, "balance", 0.0) or 0.0),
                 "equity": float(getattr(account, "equity", 0.0) or 0.0),
                 "margin": float(getattr(account, "margin", 0.0) or 0.0),
                 "profit": float(getattr(account, "profit", 0.0) or 0.0),
-                "trade_mode": int(getattr(account, "trade_mode", 0) or 0),
-            })
+                "free_margin": float(getattr(account, "margin", 0.0) or 0.0) - float(getattr(account, "margin_used", 0.0) or 0.0),
+            }
+            
+            account_display = [
+                (t("account_login") if "account_login" in TXT else "Login", str(account_data["login"]), "🔐"),
+                (t("account_balance") if "account_balance" in TXT else "Balance", f"{account_data['balance']:.2f}", "💵"),
+                (t("account_equity") if "account_equity" in TXT else "Equity", f"{account_data['equity']:.2f}", "📊"),
+                (t("account_margin") if "account_margin" in TXT else "Margin", f"{account_data['margin']:.2f}", "📌"),
+                (t("account_profit") if "account_profit" in TXT else "Profit", f"{account_data['profit']:+.2f}", "📈" if account_data['profit'] >= 0 else "📉"),
+                (t("account_free_margin") if "account_free_margin" in TXT else "Free Margin", f"{account_data['free_margin']:.2f}", "💚"),
+            ]
+            
+            for col, (label, value, icon) in zip(acc_cols, account_display):
+                with col:
+                    color = "#FFFFFF" if (label.lower() in ["balance", "equity", "login"] or ("profit" in label.lower() and account_data['profit'] >= 0)) else "#CCCCCC"
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.8em; margin-bottom: 8px;">{icon}</div>
+                            <div class="metric-label">{label}</div>
+                            <div class="metric-value" style="color: {color};">{value}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         positions = mt5.positions_get() or []
         rows = []
@@ -2369,14 +3031,15 @@ def _render_portfolio() -> None:
                 }
             )
 
-        st.write(t("positions"))
+        st.markdown("---")
+        st.markdown("**📍 " + t("positions") + "**")
         if not rows:
-            st.info(t("no_positions"))
+            st.info("✅ " + t("no_positions"))
         else:
-            st.dataframe(pd.DataFrame(rows), width="stretch", height=340)
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, height=350)
 
     except Exception as exc:
-        st.error(str(exc))
+        st.error(f"❌ {str(exc)}")
     finally:
         try:
             import MetaTrader5 as mt5
@@ -2386,7 +3049,7 @@ def _render_portfolio() -> None:
 
 
 def _render_system_health(db_path: Path, is_admin: bool) -> None:
-    st.subheader(t("health_title"))
+    st.subheader("⚙️ " + t("health_title"))
     env = _load_env_map()
     db = SignalDB(str(db_path))
     venv_py = ROOT / ".venv" / "Scripts" / "python.exe"
@@ -2399,154 +3062,171 @@ def _render_system_health(db_path: Path, is_admin: bool) -> None:
     venv_exists = venv_py.exists()
     git_info = _git_version_info()
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(t("health_venv"), t("health_exists") if venv_exists else t("health_missing"))
-    c2.metric(t("health_env"), t("health_exists") if env_exists else t("health_missing"))
-    c3.metric(t("health_db"), t("health_exists") if db_exists else t("health_missing"))
-    c4.metric(t("health_pid"), str(daemon_pid) if daemon_pid else "-", delta=t("health_running") if daemon_running else t("health_not_running"))
+    # Status indicators
+    st.markdown("**📋 System Status**")
+    status_cols = st.columns(4, gap="medium")
+    status_data = [
+        ("Venv", t("health_exists") if venv_exists else t("health_missing"), "✅" if venv_exists else "❌"),
+        ("Env", t("health_exists") if env_exists else t("health_missing"), "✅" if env_exists else "❌"),
+        ("Database", t("health_exists") if db_exists else t("health_missing"), "✅" if db_exists else "❌"),
+        ("Daemon", str(daemon_pid) if daemon_pid else "-", "✅" if daemon_running else "⚠️"),
+    ]
+    
+    for col, (label, status_text, icon) in zip(status_cols, status_data):
+        with col:
+            color = "#FFFFFF" if "✅" in icon else "#FFB266"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.8em; margin-bottom: 8px;">{icon}</div>
+                    <div class="metric-label">{label}</div>
+                    <div class="metric-value" style="color: {color};">{status_text}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    b1, b2, b3, b4 = st.columns(4)
-    with b1:
-        st.markdown(_status_badge(t("health_ok_label") if venv_exists else t("health_error_label"), "ok" if venv_exists else "error"), unsafe_allow_html=True)
-        st.caption(t("health_venv"))
-    with b2:
-        st.markdown(_status_badge(t("health_ok_label") if env_exists else t("health_error_label"), "ok" if env_exists else "error"), unsafe_allow_html=True)
-        st.caption(t("health_env"))
-    with b3:
-        st.markdown(_status_badge(t("health_ok_label") if db_exists else t("health_warn_label"), "ok" if db_exists else "warn"), unsafe_allow_html=True)
-        st.caption(t("health_db"))
-    with b4:
-        daemon_level = "ok" if daemon_running else ("warn" if stale_pid else "error")
-        daemon_label = t("health_ok_label") if daemon_running else (t("health_warn_label") if stale_pid else t("health_error_label"))
-        st.markdown(_status_badge(daemon_label, daemon_level), unsafe_allow_html=True)
-        st.caption(t("health_pid"))
-
+    st.markdown("---")
+    st.markdown("**📡 Configuration**")
     st.caption(
-        f"MT5_LOGIN={env.get('MT5_LOGIN', '-') or '-'} | "
-        f"MT5_SERVER={env.get('MT5_SERVER', '-') or '-'} | "
-        f"DB_PATH={env.get('DB_PATH', 'signals.db')}"
+        f"🔑 Login: {env.get('MT5_LOGIN', '-') or '-'} | "
+        f"🌐 Server: {env.get('MT5_SERVER', '-') or '-'} | "
+        f"📁 Database: {env.get('DB_PATH', 'signals.db')}"
     )
 
+    st.markdown("---")
     mt5_level, mt5_label, mt5_details = _mt5_health_badge(env)
-    st.markdown(
-        f"### {t('health_mt5_status')} &nbsp; {_status_badge(mt5_label, mt5_level)}",
-        unsafe_allow_html=True,
-    )
+    st.markdown(f"**🔌 MT5 Status: {_status_badge(mt5_label, mt5_level)}**", unsafe_allow_html=True)
     if mt5_details:
         st.caption(mt5_details)
     st.caption(t("health_mt5_retry_note"))
 
-    st.markdown(f"### {t('health_version')}")
-    v1, v2, v3 = st.columns(3)
-    v1.metric(t("health_git_branch"), git_info["branch"])
-    v2.metric(t("health_git_commit"), git_info["commit"])
-    v3.metric(t("health_git_commit_time"), git_info["commit_time"])
+    st.markdown("---")
+    st.markdown("**📦 Version Info**")
+    v_cols = st.columns(3, gap="medium")
+    version_data = [
+        ("📍 Branch", git_info["branch"]),
+        ("🔗 Commit", git_info["commit"]),
+        ("⏰ Time", git_info["commit_time"]),
+    ]
+    for col, (label, value) in zip(v_cols, version_data):
+        with col:
+            st.metric(label, value)
 
     if is_admin:
+        st.markdown("---")
+        st.markdown("**🔧 Admin Tools**")
+        
         import_days = st.number_input(t("health_import_mt5_days"), min_value=1, max_value=365, value=30, step=1)
 
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            if st.button(t("health_mt5_test"), width="stretch"):
+        # Test and import buttons
+        tool_cols = st.columns(3, gap="medium")
+        with tool_cols[0]:
+            if st.button("🧪 " + t("health_mt5_test"), use_container_width=True):
                 ok, payload = _test_mt5_connection(env)
                 if ok:
                     db.log_scan_event("SYSTEM", "INFO", "health_mt5_test_ok", payload)
-                    st.success(t("health_mt5_ok"))
+                    st.success("✅ " + t("health_mt5_ok"))
                     st.json(payload)
                 else:
                     db.log_scan_event("SYSTEM", "ERROR", "health_mt5_test_fail", payload)
-                    st.error(f"{t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
-        with m2:
-            if st.button(t("health_import_mt5_history"), width="stretch"):
+                    st.error(f"❌ {t('health_mt5_fail')}: {payload.get('error', 'unknown error')}")
+        with tool_cols[1]:
+            if st.button("📥 " + t("health_import_mt5_history"), use_container_width=True):
                 stats, error = _import_mt5_history_to_db(env, db_path, lookback_days=int(import_days))
                 if error:
                     db.log_scan_event("SYSTEM", "ERROR", "health_import_mt5_history_fail", {"error": error, "days": int(import_days), **stats})
-                    st.error(f"{t('health_import_mt5_fail')}: {error}")
+                    st.error(f"❌ {t('health_import_mt5_fail')}: {error}")
                 else:
                     db.log_scan_event("SYSTEM", "INFO", "health_import_mt5_history_done", {"days": int(import_days), **stats})
                     st.success(
-                        f"{t('health_import_mt5_done')}: "
+                        f"✅ {t('health_import_mt5_done')}: "
                         f"open={stats.get('open_imported', 0)} "
                         f"closed={stats.get('closed_imported', 0)} "
                         f"skipped={stats.get('skipped', 0)}"
                     )
                     st.json(stats)
-        with m3:
+        with tool_cols[2]:
             bundle_bytes, bundle_name, bundle_summary = _build_support_bundle(env, db_path)
             downloaded = st.download_button(
-                t("health_support_bundle"),
+                "📦 " + t("health_support_bundle"),
                 data=bundle_bytes,
                 file_name=bundle_name,
                 mime="application/zip",
-                width="stretch",
+                use_container_width=True,
             )
-            with st.expander(t("health_support_preview"), expanded=False):
+            with st.expander("📋 " + t("health_support_preview"), expanded=False):
                 st.json(bundle_summary)
             if downloaded:
                 db.log_scan_event("SYSTEM", "INFO", "health_support_bundle_downloaded", {"file_name": bundle_name, **bundle_summary})
 
-        a1, a2 = st.columns(2)
-        with a1:
-            if st.button(t("health_open_logs"), width="stretch"):
+        st.markdown("---")
+        st.markdown("**🚀 Quick Actions**")
+        action_cols = st.columns(2, gap="medium")
+        with action_cols[0]:
+            if st.button("📂 " + t("health_open_logs"), use_container_width=True):
                 ok, msg = _run_batch_file(ROOT / "Open-Logs.bat", detached=True)
-                (st.success if ok else st.warning)(msg)
-        with a2:
-            if st.button(t("health_status_check"), width="stretch"):
+                (st.success if ok else st.warning)("✅ " + msg if ok else "⚠️ " + msg)
+        with action_cols[1]:
+            if st.button("📊 " + t("health_status_check"), use_container_width=True):
                 ok, msg = _run_batch_file(ROOT / "Status-Check.bat", detached=True)
-                (st.success if ok else st.warning)(msg)
+                (st.success if ok else st.warning)("✅ " + msg if ok else "⚠️ " + msg)
 
-        st.markdown(f"### {t('health_self_heal')}")
-        h1, h2, h3 = st.columns(3)
-        with h1:
-            if st.button(t("health_clear_stale_pid"), width="stretch"):
+        st.markdown("---")
+        st.markdown("**🔨 " + t("health_self_heal") + "**")
+        heal_cols = st.columns(3, gap="medium")
+        with heal_cols[0]:
+            if st.button("🗑️ " + t("health_clear_stale_pid"), use_container_width=True):
                 if stale_pid:
                     _clear_pid_info()
                     db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": True})
-                    st.success("Cleared stale PID file")
+                    st.success("✅ Cleared stale PID file")
                 else:
                     db.log_scan_event("SYSTEM", "INFO", "health_clear_stale_pid", {"cleared": False})
-                    st.info("No stale PID to clear")
-        with h2:
-            if st.button(t("health_run_sync_now"), width="stretch"):
-                with st.status("...", expanded=True) as status:
+                    st.info("ℹ️ No stale PID to clear")
+        with heal_cols[1]:
+            if st.button("🔀 " + t("health_run_sync_now"), use_container_width=True):
+                with st.status("⏳ Running...", expanded=True) as status:
                     code, out, err = _run_command([_project_python(), "main.py", "--mode", "sync"], timeout=300)
                     status.write(out or "(no stdout)")
                     if err:
                         status.write(err)
-                    status.update(label=f"Done (code={code})", state="complete")
+                    status.update(label=f"✅ Done (code={code})", state="complete")
                     db.log_scan_event("SYSTEM", "INFO" if code == 0 else "ERROR", "health_run_sync_now", {"code": code, "stdout": out, "stderr": err})
-        with h3:
-            if st.button(t("health_restart_all"), width="stretch"):
+        with heal_cols[2]:
+            if st.button("🔄 " + t("health_restart_all"), use_container_width=True):
                 ok, msg = _run_batch_file(ROOT / "Restart-All.bat", detached=True)
                 db.log_scan_event("SYSTEM", "INFO" if ok else "ERROR", "health_restart_all", {"message": msg})
-                (st.success if ok else st.warning)(msg)
+                (st.success if ok else st.warning)("✅ " + msg if ok else "⚠️ " + msg)
     else:
-        st.info(t("access_admin_only"))
+        st.info("ℹ️ " + t("access_admin_only"))
 
-    st.markdown(f"### {t('health_ports')}")
-    st.dataframe(_port_snapshot([8501, 8502]), width="stretch", height=180)
+    st.markdown("---")
+    st.markdown("**🔌 Network Ports**")
+    st.dataframe(_port_snapshot([8501, 8502]), use_container_width=True, height=180)
 
-    st.markdown(f"### {t('health_process')}")
+    st.markdown("---")
+    st.markdown("**⚙️ Processes**")
     proc_df = _process_snapshot()
     if proc_df.empty:
-        st.info(t("health_not_running"))
+        st.info("ℹ️ " + t("health_not_running"))
     else:
-        st.dataframe(proc_df, width="stretch", height=220)
+        st.dataframe(proc_df, use_container_width=True, height=220)
 
-    st.markdown(f"### {t('health_logs')}")
-    l1, l2 = st.columns(2)
-    with l1:
-        st.caption("daemon.log")
+    st.markdown("---")
+    st.markdown("**📜 Recent Logs**")
+    log_cols = st.columns(2, gap="medium")
+    with log_cols[0]:
+        st.markdown("**📝 daemon.log**")
         st.code(_tail_text(ROOT / "logs" / "daemon.log", lines=20), language="log")
-    with l2:
-        st.caption("dashboard.log")
+    with log_cols[1]:
+        st.markdown("**📝 dashboard.log**")
         st.code(_tail_text(ROOT / "logs" / "dashboard.log", lines=20), language="log")
 
 
 def _render_config_editor() -> None:
-    st.subheader(t("env_editor"))
+    st.subheader("⚙️ " + t("env_editor"))
     if not ENV_PATH.exists():
-        st.warning(".env not found")
+        st.warning("⚠️ .env not found")
         return
 
     env = _load_env_map()
@@ -2560,34 +3240,36 @@ def _render_config_editor() -> None:
     if min_alert_env not in exec_options:
         min_alert_env = "alert"
 
-    st.markdown(f"### {t('config_wizard')}")
-    st.markdown(f"### {t('account_switcher')}")
+    st.markdown("**🔧 " + t("config_wizard") + "**")
+    st.markdown("---")
+    st.markdown("**🔀 " + t("account_switcher") + "**")
     default_mode = env.get("ACCOUNT_MODE", env.get("EXECUTION_MODE", "demo")).strip().lower()
     if default_mode not in {"demo", "live"}:
         default_mode = "demo"
 
     with st.form("account_switch_form", clear_on_submit=False):
+        st.markdown("**Select Account Mode:**")
         active_mode = st.radio(
             t("account_mode"),
             options=["demo", "live"],
             index=0 if default_mode == "demo" else 1,
             horizontal=True,
         )
-        a1, a2 = st.columns(2)
+        a1, a2 = st.columns(2, gap="medium")
         with a1:
-            st.markdown(f"#### {t('account_demo')}")
-            demo_login = st.text_input(f"{t('account_login')} (DEMO)", value=env.get("MT5_LOGIN_DEMO", env.get("MT5_LOGIN", "")))
-            demo_password = st.text_input(f"{t('account_password')} (DEMO)", value=env.get("MT5_PASSWORD_DEMO", env.get("MT5_PASSWORD", "")), type="password")
-            demo_server = st.text_input(f"{t('account_server')} (DEMO)", value=env.get("MT5_SERVER_DEMO", env.get("MT5_SERVER", "")))
+            st.markdown("**📝 " + t("account_demo") + "**")
+            demo_login = st.text_input(f"🔐 {t('account_login')} (DEMO)", value=env.get("MT5_LOGIN_DEMO", env.get("MT5_LOGIN", "")))
+            demo_password = st.text_input(f"🔑 {t('account_password')} (DEMO)", value=env.get("MT5_PASSWORD_DEMO", env.get("MT5_PASSWORD", "")), type="password")
+            demo_server = st.text_input(f"🌐 {t('account_server')} (DEMO)", value=env.get("MT5_SERVER_DEMO", env.get("MT5_SERVER", "")))
         with a2:
-            st.markdown(f"#### {t('account_live')}")
-            live_login = st.text_input(f"{t('account_login')} (LIVE)", value=env.get("MT5_LOGIN_LIVE", ""))
-            live_password = st.text_input(f"{t('account_password')} (LIVE)", value=env.get("MT5_PASSWORD_LIVE", ""), type="password")
-            live_server = st.text_input(f"{t('account_server')} (LIVE)", value=env.get("MT5_SERVER_LIVE", ""))
+            st.markdown("**📝 " + t("account_live") + "**")
+            live_login = st.text_input(f"🔐 {t('account_login')} (LIVE)", value=env.get("MT5_LOGIN_LIVE", ""))
+            live_password = st.text_input(f"🔑 {t('account_password')} (LIVE)", value=env.get("MT5_PASSWORD_LIVE", ""), type="password")
+            live_server = st.text_input(f"🌐 {t('account_server')} (LIVE)", value=env.get("MT5_SERVER_LIVE", ""))
 
-        b1, b2 = st.columns(2)
-        save_profiles = b1.form_submit_button(t("save_account_profiles"), width="stretch")
-        apply_switch = b2.form_submit_button(t("apply_account_mode"), type="primary", width="stretch")
+        b1, b2 = st.columns(2, gap="medium")
+        save_profiles = b1.form_submit_button("💾 " + t("save_account_profiles"), use_container_width=True)
+        apply_switch = b2.form_submit_button("✅ " + t("apply_account_mode"), use_container_width=True)
 
         profile_updates = {
             "ACCOUNT_MODE": active_mode,
@@ -2604,8 +3286,8 @@ def _render_config_editor() -> None:
         if save_profiles:
             _upsert_env_values(profile_updates)
             db.log_config_change(source="streamlit_account", summary="save_account_profiles", changes={"ACCOUNT_MODE": active_mode})
-            st.success(t("account_saved"))
-            st.info(t("restart_hint"))
+            st.success("✅ " + t("account_saved"))
+            st.info("ℹ️ " + t("restart_hint"))
             st.rerun()
 
         if apply_switch:
@@ -2615,7 +3297,7 @@ def _render_config_editor() -> None:
             }.get(active_mode, ("", "", ""))
             login_v, password_v, server_v = selected
             if not (login_v and password_v and server_v):
-                st.warning(t("account_missing"))
+                st.warning("⚠️ " + t("account_missing"))
             else:
                 apply_updates = dict(profile_updates)
                 apply_updates.update(
@@ -2633,11 +3315,12 @@ def _render_config_editor() -> None:
                     summary=f"apply_account_mode:{active_mode}",
                     changes={"ACCOUNT_MODE": active_mode, "EXECUTION_MODE": apply_updates["EXECUTION_MODE"]},
                 )
-                st.success(t("account_switched"))
-                st.info(t("restart_hint"))
+                st.success("✅ " + t("account_switched"))
+                st.info("ℹ️ " + t("restart_hint"))
                 st.rerun()
 
-    with st.expander("ความหมายแต่ละหัวข้อ / Section meanings", expanded=False):
+    st.markdown("---")
+    with st.expander("📖 ความหมายแต่ละหัวข้อ / Section meanings", expanded=False):
         if st.session_state.get("lang", "th") == "th":
             st.markdown(
                 """
@@ -2666,8 +3349,8 @@ def _render_config_editor() -> None:
 - **Premium Stack**: Allow extra concurrent orders when signal is premium/ultra
                 """
             )
-    with st.expander("พจนานุกรมค่าตั้งค่า / Config glossary", expanded=False):
-        st.dataframe(_config_help_df(), width="stretch", height=320)
+    with st.expander("📚 พจนานุกรมค่าตั้งค่า / Config glossary", expanded=False):
+        st.dataframe(_config_help_df(), use_container_width=True, height=320)
 
     preset_map = {
         "ultra_premium": {
@@ -2940,44 +3623,46 @@ def _render_config_editor() -> None:
 
 
 def _render_guide() -> None:
+    st.subheader("📖 " + ("คู่มือใช้งาน" if st.session_state.get("lang", "th") == "th" else "User Guide"))
+    
     if st.session_state.get("lang", "th") == "th":
         st.markdown(
             """
-### คู่มือใช้งานระบบ (SOP)
+## 📋 คู่มือใช้งานระบบ (SOP)
 
-#### 1) เปิดระบบประจำวัน
+### 1️⃣ เปิดระบบประจำวัน
 ```powershell
 C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode reset_loss_guard
 C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode sync
 C:/pytrade/.venv/Scripts/python.exe C:/pytrade/main.py --mode scan --once
 ```
 
-หรือใช้ไฟล์คลิกได้:
-- `Reset-Loss-Guard.bat`
-- `Sync-Orders.bat`
-- `Scan-Once.bat`
-- `Start-All.bat`
+**หรือใช้ไฟล์คลิกได้:**
+- 🔄 `Reset-Loss-Guard.bat`
+- 🔀 `Sync-Orders.bat`
+- 🔍 `Scan-Once.bat`
+- ▶️ `Start-All.bat`
 
-#### 2) โหมดใช้งาน
-- `scan --once`: สแกน 1 รอบ
-- `sync`: ซิงก์สถานะออเดอร์/PnL
-- `daemon`: รันต่อเนื่อง
+### 2️⃣ โหมดใช้งาน
+- 🔍 `scan --once`: สแกน 1 รอบ
+- 🔀 `sync`: ซิงก์สถานะออเดอร์/PnL
+- 👁️ `daemon`: รันต่อเนื่อง
 
-#### 3) ลำดับการใช้งานใน Dashboard
-1. ตรวจสถานะเดมอนและบัญชี MT5
-2. ปรับค่าในแท็บ `ตั้งค่า` (Configuration Wizard)
-3. กด `ซิงก์ออเดอร์` ก่อนเสมอ
-4. กด `สแกน 1 รอบ` เพื่อทดสอบ
-5. ถ้าปกติค่อย `เริ่มเดมอน`
+### 3️⃣ ลำดับการใช้งานใน Dashboard
+1. ✅ ตรวจสถานะเดมอนและบัญชี MT5
+2. ⚙️ ปรับค่าในแท็บ `ตั้งค่า` (Configuration Wizard)
+3. 🔄 กด `ซิงก์ออเดอร์` ก่อนเสมอ
+4. 🔍 กด `สแกน 1 รอบ` เพื่อทดสอบ
+5. ▶️ ถ้าปกติค่อย `เริ่มเดมอน`
 
-#### 4) การปรับความเข้มข้น
-- เข้าเยอะ: `aggressive`
-- สมดุล: `balanced`
-- คัดเข้ม: `premium`
-- คัดโหด: `ultra_premium`
+### 4️⃣ การปรับความเข้มข้น
+- 🚀 `aggressive`: เข้าเยอะ
+- ⚖️ `balanced`: สมดุล
+- 💎 `premium`: คัดเข้ม
+- 👑 `ultra_premium`: คัดโหด
 
-#### 5) เหตุผลที่มักเจอ
-- `below_min_execute_category`: คะแนนยังไม่ถึงขั้นต่ำส่งคำสั่ง
+### 5️⃣ เหตุผลที่มักเจอ
+- ❌ `below_min_execute_category`: คะแนนยังไม่ถึงขั้นต่ำส่งคำสั่ง
 - `cooldown_active`: ยังไม่พ้นเวลาพักของสัญลักษณ์
 - `max_open_positions_reached`: จำนวนไม้เปิดเต็ม
 - `daily_loss_limit_reached`: ชนเพดานขาดทุนรายวัน
@@ -3065,117 +3750,125 @@ C:/pytrade/.venv/Scripts/python.exe -m sqlite3 signals.db "SELECT id,timestamp,s
 
 
 def _render_deploy_wizard() -> None:
-    st.subheader(t("deploy_title"))
+    st.subheader("🚀 " + t("deploy_title"))
     env = _load_env_map()
     db_path = _load_env_db_path()
     db = SignalDB(str(db_path))
 
-    st.markdown(f"### {t('deploy_release_title')}")
+    st.markdown("---")
+    st.markdown("**📦 " + t("deploy_release_title") + "**")
     artifacts = _latest_release_artifacts()
     output_dir = Path(str(artifacts["output_dir"]))
     if artifacts["installer"] or artifacts["release_zip"] or artifacts["release_notes"]:
-        r1, r2, r3, r4 = st.columns(4)
-        r1.metric(t("deploy_release_latest"), str(artifacts["version"]))
-        r2.metric(t("deploy_release_installer"), Path(artifacts["installer"]).name if artifacts["installer"] else "-")
-        r3.metric(t("deploy_release_zip"), Path(artifacts["release_zip"]).name if artifacts["release_zip"] else "-")
-        r4.metric(t("deploy_release_notes"), Path(artifacts["release_notes"]).name if artifacts["release_notes"] else "-")
+        r1, r2, r3, r4 = st.columns(4, gap="medium")
+        r1.metric("📌 " + t("deploy_release_latest"), str(artifacts["version"]))
+        r2.metric("💾 " + t("deploy_release_installer"), Path(artifacts["installer"]).name if artifacts["installer"] else "-")
+        r3.metric("📦 " + t("deploy_release_zip"), Path(artifacts["release_zip"]).name if artifacts["release_zip"] else "-")
+        r4.metric("📄 " + t("deploy_release_notes"), Path(artifacts["release_notes"]).name if artifacts["release_notes"] else "-")
     else:
-        st.info(t("deploy_release_none"))
+        st.info("ℹ️ " + t("deploy_release_none"))
 
-    st.caption(f"{t('deploy_release_output')}: {output_dir}")
+    st.caption(f"📁 {t('deploy_release_output')}: {output_dir}")
 
-    rr1, rr2, rr3 = st.columns(3)
+    st.markdown("---")
+    st.markdown("**🔨 Build Tools**")
+    rr1, rr2, rr3 = st.columns(3, gap="medium")
     with rr1:
-        if st.button(t("deploy_release_build_installer"), width="stretch"):
+        if st.button("🏗️ " + t("deploy_release_build_installer"), use_container_width=True):
             code, out, err = _run_powershell_script(ROOT / "scripts" / "build_installer.ps1", timeout=1800)
             if code == 0:
                 db.log_scan_event("SYSTEM", "INFO", "deploy_build_installer", {"stdout": out})
-                st.success(out or t("deploy_release_built"))
+                st.success("✅ " + (out or t("deploy_release_built")))
                 st.rerun()
             else:
                 db.log_scan_event("SYSTEM", "ERROR", "deploy_build_installer_fail", {"stdout": out, "stderr": err})
-                st.error(err or out or t("deploy_release_failed"))
+                st.error("❌ " + (err or out or t("deploy_release_failed")))
     with rr2:
-        if st.button(t("deploy_release_package"), width="stretch"):
+        if st.button("📦 " + t("deploy_release_package"), use_container_width=True):
             code, out, err = _run_powershell_script(ROOT / "scripts" / "package_release.ps1", timeout=1800)
             if code == 0:
                 db.log_scan_event("SYSTEM", "INFO", "deploy_package_release", {"stdout": out})
-                st.success(out or t("deploy_release_packaged"))
+                st.success("✅ " + (out or t("deploy_release_packaged")))
                 st.rerun()
             else:
                 db.log_scan_event("SYSTEM", "ERROR", "deploy_package_release_fail", {"stdout": out, "stderr": err})
-                st.error(err or out or t("deploy_release_failed"))
+                st.error("❌ " + (err or out or t("deploy_release_failed")))
     with rr3:
-        if st.button(t("deploy_release_build_all"), width="stretch"):
+        if st.button("⚙️ " + t("deploy_release_build_all"), use_container_width=True):
             ok, msg = _run_batch_file(ROOT / "Build-Release.bat", detached=False)
             db.log_scan_event("SYSTEM", "INFO" if ok else "ERROR", "deploy_build_all", {"message": msg})
-            (st.success if ok else st.error)(msg)
+            (st.success if ok else st.error)(("✅ " if ok else "❌ ") + msg)
             if ok:
                 st.rerun()
 
-    rr4, rr5, rr6 = st.columns(3)
+    st.markdown("---")
+    st.markdown("**📂 File Management**")
+    rr4, rr5, rr6 = st.columns(3, gap="medium")
     with rr4:
-        if st.button(t("deploy_release_open_output"), width="stretch"):
+        if st.button("📂 " + t("deploy_release_open_output"), use_container_width=True):
             try:
                 subprocess.Popen(["explorer.exe", str(output_dir)], cwd=str(ROOT), shell=False)
-                st.success(str(output_dir))
+                st.success("✅ " + str(output_dir))
             except Exception as exc:
-                st.error(str(exc))
+                st.error("❌ " + str(exc))
     with rr5:
-        if st.button(t("deploy_release_select_version"), width="stretch"):
+        if st.button("🔀 " + t("deploy_release_select_version"), use_container_width=True):
             ok, msg = _run_batch_file(ROOT / "scripts" / "Select-Version.bat", detached=True)
-            (st.success if ok else st.warning)(msg)
+            (st.success if ok else st.warning)(("✅ " if ok else "⚠️ ") + msg)
     with rr6:
-        if st.button(t("deploy_release_refresh"), width="stretch"):
+        if st.button("🔄 " + t("deploy_release_refresh"), use_container_width=True):
             st.rerun()
 
-    dl1, dl2, dl3, dl4 = st.columns(4)
+    st.markdown("---")
+    st.markdown("**⬇️ Downloads**")
+    dl1, dl2, dl3, dl4 = st.columns(4, gap="medium")
     with dl1:
         installer_path = artifacts["installer"]
         if installer_path and Path(installer_path).exists():
             p = Path(installer_path)
             st.download_button(
-                t("deploy_release_download_installer"),
+                "💾 " + t("deploy_release_download_installer"),
                 data=p.read_bytes(),
                 file_name=p.name,
                 mime="application/vnd.microsoft.portable-executable",
-                width="stretch",
+                use_container_width=True,
             )
     with dl2:
         zip_path = artifacts["release_zip"]
         if zip_path and Path(zip_path).exists():
             p = Path(zip_path)
             st.download_button(
-                t("deploy_release_download_zip"),
+                "📦 " + t("deploy_release_download_zip"),
                 data=p.read_bytes(),
                 file_name=p.name,
                 mime="application/zip",
-                width="stretch",
+                use_container_width=True,
             )
     with dl3:
         notes_path = artifacts["release_notes"]
         if notes_path and Path(notes_path).exists():
             p = Path(notes_path)
             st.download_button(
-                t("deploy_release_download_notes"),
+                "📄 " + t("deploy_release_download_notes"),
                 data=p.read_bytes(),
                 file_name=p.name,
                 mime="text/markdown",
-                width="stretch",
+                use_container_width=True,
             )
     with dl4:
         manifest_path = artifacts["manifest"]
         if manifest_path and Path(manifest_path).exists():
             p = Path(manifest_path)
             st.download_button(
-                t("deploy_release_download_manifest"),
+                "📋 " + t("deploy_release_download_manifest"),
                 data=p.read_bytes(),
                 file_name=p.name,
                 mime="application/json",
-                width="stretch",
+                use_container_width=True,
             )
 
-    with st.expander("Release artifacts", expanded=False):
+    st.markdown("---")
+    with st.expander("📦 Release artifacts", expanded=False):
         preview_rows = []
         for label, key in [
             (t("deploy_release_installer"), "installer"),
@@ -3257,60 +3950,106 @@ def _render_deploy_wizard() -> None:
 
 
 def main() -> None:
-    # Must be the first Streamlit command.
-    st.set_page_config(page_title="PyTrade Control Center", layout="wide")
+    """Main application entry point with modern UI"""
     _init_ui_state_from_query()
     if "lang" not in st.session_state:
         st.session_state["lang"] = "th"
-    st.title(t("title"))
-
+    
+    # Modern header
+    st.markdown("""
+    <div class="header-main">
+        <h1>📊 PyTrade Control Center</h1>
+        <p>Professional Trading Automation Platform</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     env = _load_env_map()
     _ensure_access_session(env)
     is_admin = _is_admin()
     db_path = _load_env_db_path()
-    _render_controls(db_path, is_admin)
+    
+    # Render controls in sidebar
+    with st.sidebar:
+        st.markdown("---")
+        _render_controls(db_path, is_admin)
+        st.markdown("---")
+        _render_access_controls(env)
+    
+    # Build tab configuration (ordered by usage frequency)
     tab_options = [
-        ("dashboard", t("tab_dashboard")),
-        ("performance", t("tab_performance")),
-        ("portfolio", t("tab_portfolio")),
-        ("health", t("tab_health")),
-        ("guide", t("tab_guide")),
+        ("dashboard", "📊 " + t("tab_dashboard")),
+        ("performance", "📈 " + t("tab_performance")),
+        ("portfolio", "💼 " + t("tab_portfolio")),
+        ("health", "🏥 " + t("tab_health")),
+        ("guide", "📖 " + t("tab_guide")),
     ]
     if is_admin:
-        tab_options.extend([("config", t("tab_config")), ("deploy", t("tab_deploy"))])
-    tab_labels = [label for _, label in tab_options]
+        tab_options.extend([
+            ("config", "⚙️ " + t("tab_config")),
+            ("deploy", "🚀 " + t("tab_deploy"))
+        ])
+    
+    # Get current active tab
     current_key = str(st.session_state.get("active_tab", "dashboard"))
     valid_keys = {key for key, _ in tab_options}
     if current_key not in valid_keys:
         current_key = "dashboard"
         st.session_state["active_tab"] = current_key
-    current_index = next((i for i, (key, _) in enumerate(tab_options) if key == current_key), 0)
-    selected_label = st.radio(
-        "Navigation",
-        options=tab_labels,
-        index=current_index,
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-    selected_key = next(key for key, label in tab_options if label == selected_label)
-    st.session_state["active_tab"] = selected_key
+    
+    # Create tab navigation with equal-sized buttons - responsive layout
+    if len(tab_options) <= 4:
+        nav_buttons = st.columns(len(tab_options), gap="small")
+    elif len(tab_options) <= 6:
+        nav_buttons = st.columns(5, gap="small")
+    else:
+        nav_buttons = st.columns(5, gap="small")
+    
+    nav_idx = 0
+    for key, label in tab_options:
+        if nav_idx >= len(nav_buttons):
+            st.write("")  # New line
+            nav_buttons = st.columns(len(tab_options) - nav_idx, gap="small")
+            nav_idx = 0
+        
+        with nav_buttons[nav_idx]:
+            if st.button(label, use_container_width=True, key=f"nav_{key}"):
+                st.session_state["active_tab"] = key
+                st.rerun()
+        nav_idx += 1
+    
+    st.markdown("---")
     _persist_ui_state_to_query()
-
-    if selected_key == "dashboard":
-        _render_dashboard(db_path, is_admin)
-    elif selected_key == "performance":
-        _render_performance(db_path)
-    elif selected_key == "portfolio":
-        _render_portfolio()
-    elif selected_key == "health":
-        _render_system_health(db_path, is_admin)
-    elif selected_key == "config":
-        _render_config_editor()
-    elif selected_key == "guide":
-        _render_guide()
-    elif selected_key == "deploy":
-        _render_deploy_wizard()
+    
+    # Render selected tab
+    selected_key = str(st.session_state.get("active_tab", "dashboard"))
+    
+    try:
+        if selected_key == "dashboard":
+            _render_dashboard(db_path, is_admin)
+        elif selected_key == "performance":
+            _render_performance(db_path)
+        elif selected_key == "portfolio":
+            _render_portfolio()
+        elif selected_key == "health":
+            _render_system_health(db_path, is_admin)
+        elif selected_key == "config":
+            if is_admin:
+                _render_config_editor()
+            else:
+                st.error(t("access_admin_only"))
+        elif selected_key == "guide":
+            _render_guide()
+        elif selected_key == "deploy":
+            if is_admin:
+                _render_deploy_wizard()
+            else:
+                st.error(t("access_admin_only"))
+        else:
+            st.warning("Unknown tab")
+    except Exception as exc:
+        st.error(f"Error rendering tab: {exc}")
 
 
 if __name__ == "__main__":
     main()
+
