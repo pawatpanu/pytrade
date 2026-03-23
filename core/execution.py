@@ -42,6 +42,13 @@ class ExecutionEngine:
             return
 
         entry = float(tick.ask if signal.direction == "BUY" else tick.bid)
+        pullback_ready, pullback_reason = self._btc_pullback_ready(signal, entry)
+        if not pullback_ready:
+            logger.info("Execution skipped %s %s: %s", signal.direction, signal.normalized_symbol, pullback_reason)
+            if pullback_reason in set(self.config.log_skipped_reasons):
+                self._log(signal, status="skipped", reason=pullback_reason)
+            return
+
         plan = signal.trade_plan or {}
         sl = float(plan.get("stop_loss", 0.0))
         tp = float(plan.get("take_profit", 0.0))
@@ -593,6 +600,37 @@ class ExecutionEngine:
             max_open += int(self.config.ultra_stack_extra_slots)
         return max(1, max_open)
 
+    def _btc_pullback_ready(self, signal: SignalResult, current_price: float) -> tuple[bool, str]:
+        if not self.config.btc_pullback_entry_enabled:
+            return True, ""
+
+        symbol = str(getattr(signal, "normalized_symbol", "") or getattr(signal, "symbol", ""))
+        if not self._is_btc_symbol(symbol):
+            return True, ""
+
+        plan = signal.trade_plan or {}
+        reference_entry = float(plan.get("entry", getattr(signal, "price", 0.0)) or 0.0)
+        stop_loss = float(plan.get("stop_loss", 0.0) or 0.0)
+        risk_distance = abs(reference_entry - stop_loss)
+        min_retrace = risk_distance * float(self.config.btc_pullback_min_retrace_r)
+
+        if reference_entry <= 0.0 or min_retrace <= 0.0:
+            return True, ""
+
+        if signal.direction == "BUY":
+            if current_price > (reference_entry - min_retrace):
+                return False, "btc_wait_pullback"
+            return True, ""
+
+        if current_price < (reference_entry + min_retrace):
+            return False, "btc_wait_pullback"
+        return True, ""
+
+    @staticmethod
+    def _is_btc_symbol(symbol: str) -> bool:
+        key = "".join(ch for ch in (symbol or "").upper() if ch.isalnum())
+        return key.startswith("BTCUSD")
+
     def _calc_volume(self, symbol_info: object, entry: float, stop_loss: float, risk_amount: float) -> float:
         step = float(getattr(symbol_info, "volume_step", 0.01) or 0.01)
         min_lot = float(getattr(symbol_info, "volume_min", 0.01) or 0.01)
@@ -648,3 +686,4 @@ class ExecutionEngine:
             mt5_position=mt5_position,
             comment=comment,
         )
+

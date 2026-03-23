@@ -132,3 +132,36 @@ def test_resolve_risk_amount_fallback_to_plan_when_mt5_unavailable(tmp_path, mon
     monkeypatch.setattr("core.execution.mt5.account_info", lambda: None)
     risk_amount = engine._resolve_risk_amount({"risk_amount": 25.0})
     assert risk_amount == 25.0
+
+def test_is_btc_symbol_variants() -> None:
+    assert ExecutionEngine._is_btc_symbol("BTCUSD") is True
+    assert ExecutionEngine._is_btc_symbol("BTCUSDm") is True
+    assert ExecutionEngine._is_btc_symbol("BTCUSD.a") is True
+    assert ExecutionEngine._is_btc_symbol("ETHUSD") is False
+
+
+def test_btc_pullback_ready_requires_retrace_buy(tmp_path) -> None:
+    cfg = Config(
+        db_path=str(tmp_path / "t.db"),
+        signal_profile="custom",
+        btc_pullback_entry_enabled=True,
+        btc_pullback_min_retrace_r=0.2,
+    )
+    db = SignalDB(cfg.db_path)
+    engine = ExecutionEngine(cfg, db)
+
+    signal = SimpleNamespace(
+        symbol="BTCUSD",
+        normalized_symbol="BTCUSDm",
+        direction="BUY",
+        price=100.0,
+        trade_plan={"entry": 100.0, "stop_loss": 90.0},
+    )
+
+    allowed, reason = engine._btc_pullback_ready(signal, current_price=99.0)
+    assert allowed is False
+    assert reason == "btc_wait_pullback"
+
+    allowed, reason = engine._btc_pullback_ready(signal, current_price=98.0)
+    assert allowed is True
+    assert reason == ""

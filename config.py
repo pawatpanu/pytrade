@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import re
@@ -348,6 +348,8 @@ class Config:
     ultra_stack_extra_slots: int = field(default_factory=lambda: _parse_int(os.getenv("ULTRA_STACK_EXTRA_SLOTS"), 2))
     daily_loss_limit: float = field(default_factory=lambda: _parse_float(os.getenv("DAILY_LOSS_LIMIT"), 200.0))
     order_cooldown_minutes: int = field(default_factory=lambda: _parse_int(os.getenv("ORDER_COOLDOWN_MINUTES"), 30))
+    btc_pullback_entry_enabled: bool = field(default_factory=lambda: _parse_bool(os.getenv("BTC_PULLBACK_ENTRY_ENABLED"), False))
+    btc_pullback_min_retrace_r: float = field(default_factory=lambda: _parse_float(os.getenv("BTC_PULLBACK_MIN_RETRACE_R"), 0.15))
     max_slippage_points: int = field(default_factory=lambda: _parse_int(os.getenv("MAX_SLIPPAGE_POINTS"), 100))
     fixed_lot: float = field(default_factory=lambda: _parse_float(os.getenv("FIXED_LOT"), 0.01))
     magic_number: int = field(default_factory=lambda: _parse_int(os.getenv("MAGIC_NUMBER"), 20260312))
@@ -415,6 +417,7 @@ class Config:
                 "account_info_unavailable",
                 "account_not_demo",
                 "symbol_trade_disabled",
+                "btc_wait_pullback",
             ],
         )
     )
@@ -441,6 +444,7 @@ class Config:
         self.trailing_distance_r = max(0.2, float(self.trailing_distance_r))
         self.partial_close_trigger_r = max(0.5, float(self.partial_close_trigger_r))
         self.partial_close_ratio = min(0.9, max(0.1, float(self.partial_close_ratio)))
+        self.btc_pullback_min_retrace_r = min(0.80, max(0.0, float(self.btc_pullback_min_retrace_r)))
         self.volume_ratio_m5_min = max(0.1, float(self.volume_ratio_m5_min))
         self.volume_ratio_m15_min = max(0.1, float(self.volume_ratio_m15_min))
         self.volume_ratio_h1_min = max(0.1, float(self.volume_ratio_h1_min))
@@ -531,4 +535,5 @@ class Config:
 
 
 CONFIG = Config()
+
 

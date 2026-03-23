@@ -94,6 +94,14 @@ py -m streamlit run streamlit_app.py
 ## ติดตั้งแบบรันถาวร (Auto Start)
 ใช้สคริปต์ใน `scripts/`:
 
+แนะนำ: รัน preflight เพื่อตรวจความพร้อมเครื่องปลายทางก่อน
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\preflight_windows.ps1
+```
+หรือดับเบิลคลิก:
+`Preflight-Check.bat`
+(รายงานจะถูกบันทึกที่ `logs\preflight_manual_report.txt`)
+
 ติดตั้ง:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install_windows.ps1
