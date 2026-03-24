@@ -1218,7 +1218,6 @@ def _render_access_controls(env: dict[str, str]) -> None:
     if st.sidebar.button(t("access_unlock"), width="stretch"):
         if hmac.compare_digest(entered, admin_password):
             st.session_state["access_role"] = "admin"
-            st.session_state["access_password_input"] = ""
             st.rerun()
         else:
             st.sidebar.error(t("access_unlock_failed"))
@@ -4051,5 +4050,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
