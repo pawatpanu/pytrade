@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import io
 import hmac
@@ -1134,7 +1134,11 @@ def _parse_calendar_datetime_utc(date_text: str, time_text: str, timestamp_text:
 
 
 @st.cache_data(ttl=300)
-def _fetch_usd_high_impact_calendar(limit: int = 20) -> tuple[pd.DataFrame, str | None]:
+def _fetch_usd_high_impact_calendar(
+    limit: int = 20,
+    window_minutes: int = 180,
+    strict_red_only: bool = True,
+) -> tuple[pd.DataFrame, str | None]:
     req = urllib.request.Request(
         USD_CALENDAR_URL,
         headers={"User-Agent": "pytrade-calendar/1.0"},
@@ -1151,7 +1155,9 @@ def _fetch_usd_high_impact_calendar(limit: int = 20) -> tuple[pd.DataFrame, str 
     except Exception as exc:
         return pd.DataFrame(), f"xml_parse_error: {exc}"
 
+    window_minutes = max(0, min(1440, int(window_minutes)))
     now_utc = datetime.now(timezone.utc)
+    max_utc = now_utc + timedelta(minutes=window_minutes)
     rows: list[dict[str, object]] = []
 
     for event in root.findall(".//event"):
@@ -1165,11 +1171,13 @@ def _fetch_usd_high_impact_calendar(limit: int = 20) -> tuple[pd.DataFrame, str 
 
         impact_raw = _safe_calendar_text(fields.get("impact") or fields.get("impacttitle") or fields.get("impact_type"))
         impact_lower = impact_raw.lower()
-        if not ("high" in impact_lower or "red" in impact_lower):
+        if strict_red_only and not ("high" in impact_lower or "red" in impact_lower):
             continue
 
         dt_utc = _parse_calendar_datetime_utc(fields.get("date", ""), fields.get("time", ""), fields.get("timestamp", ""))
         if dt_utc is None or dt_utc < now_utc - timedelta(minutes=5):
+            continue
+        if dt_utc > max_utc:
             continue
 
         dt_bkk = dt_utc.astimezone(timezone(timedelta(hours=7)))
@@ -1193,16 +1201,20 @@ def _fetch_usd_high_impact_calendar(limit: int = 20) -> tuple[pd.DataFrame, str 
     return df, None
 
 
-def _render_usd_red_news_table() -> None:
+def _render_usd_red_news_table(env: dict[str, str]) -> None:
     st.markdown("---")
-    st.subheader("USD High Impact News (Upcoming)")
+    strict_red_only = _parse_bool_env(env, "USD_CALENDAR_STRICT_RED_ONLY", True)
+    window_minutes = max(0, min(1440, _parse_int_env(env, "USD_CALENDAR_WINDOW_MINUTES", 180)))
+    mode_text = "Strict Red-Only" if strict_red_only else "All Impacts"
+    st.subheader("USD News (Upcoming)")
+    st.caption(f"Filter: {mode_text} | Window: 0-{window_minutes} min")
 
-    cal_df, cal_err = _fetch_usd_high_impact_calendar(limit=20)
+    cal_df, cal_err = _fetch_usd_high_impact_calendar(limit=20, window_minutes=window_minutes, strict_red_only=strict_red_only)
     if cal_err:
         st.caption(f"News calendar unavailable: {cal_err}")
 
     if cal_df.empty:
-        st.info("No upcoming high-impact USD events in the latest snapshot.")
+        st.info("No USD events found in the configured window.")
         return
 
     display_cols = ["time_bkk", "in_min", "event", "previous", "forecast", "actual", "impact"]
@@ -2550,7 +2562,7 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
     </div>
     """, unsafe_allow_html=True)
     
-    _render_usd_red_news_table()
+    _render_usd_red_news_table(env)
 
     # Key metrics with modern card design
     live_open_count = None if bot_open_err else len(bot_open_df.index)
@@ -3648,6 +3660,24 @@ def _render_config_editor() -> None:
                 help=h("risk_balance_source"),
             )
 
+        st.markdown("#### USD News Table")
+        n1, n2 = st.columns(2)
+        with n1:
+            usd_calendar_strict_red_only = st.checkbox(
+                "USD_CALENDAR_STRICT_RED_ONLY",
+                value=_parse_bool_env(env, "USD_CALENDAR_STRICT_RED_ONLY", True),
+                help="If enabled, table shows only high-impact/red USD events.",
+            )
+        with n2:
+            usd_calendar_window_minutes = st.number_input(
+                "USD_CALENDAR_WINDOW_MINUTES",
+                min_value=0,
+                max_value=1440,
+                value=_parse_int_env(env, "USD_CALENDAR_WINDOW_MINUTES", 180),
+                step=15,
+                help="Upcoming time window in minutes (0-1440).",
+            )
+
         st.markdown("#### Premium Stack")
         ps1, ps2, ps3 = st.columns(3)
         with ps1:
@@ -3696,6 +3726,8 @@ def _render_config_editor() -> None:
                 "EXECUTION_MODE": exec_mode,
                 "SL_ATR_MULTIPLIER": f"{sl_mult:.2f}",
                 "TARGET_RR": f"{target_rr:.2f}",
+                "USD_CALENDAR_STRICT_RED_ONLY": str(usd_calendar_strict_red_only).lower(),
+                "USD_CALENDAR_WINDOW_MINUTES": str(int(usd_calendar_window_minutes)),
                 "ENABLE_PREMIUM_STACK": str(enable_premium_stack).lower(),
                 "PREMIUM_STACK_EXTRA_SLOTS": str(int(premium_extra_slots)),
                 "ENABLE_ULTRA_STACK": str(enable_ultra_stack).lower(),
@@ -4207,6 +4239,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
