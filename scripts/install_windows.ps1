@@ -52,7 +52,9 @@ function New-DesktopShortcutSafe {
 function New-DesktopUrlShortcutSafe {
     param(
         [string]$Name,
-        [string]$Url
+        [string]$Url,
+        [string]$IconFile = "",
+        [int]$IconIndex = 0
     )
 
     if ([string]::IsNullOrWhiteSpace($Url)) { return }
@@ -66,10 +68,15 @@ function New-DesktopUrlShortcutSafe {
         if (-not (Test-Path $desktop)) { continue }
         $shortcutPath = Join-Path $desktop ("$Name.url")
         try {
-            @"
-[InternetShortcut]
-URL=$Url
-"@ | Set-Content -Path $shortcutPath -Encoding ASCII
+            $lines = @(
+                "[InternetShortcut]",
+                "URL=$Url"
+            )
+            if ($IconFile) {
+                $lines += "IconFile=$IconFile"
+                $lines += "IconIndex=$IconIndex"
+            }
+            Set-Content -Path $shortcutPath -Encoding ASCII -Value $lines
             Write-Step "Created desktop shortcut: $shortcutPath"
         }
         catch {
@@ -233,8 +240,13 @@ if ($InstallDashboardTask) {
 }
 
 $quickStartBat = Join-Path $project "Quick-Start.bat"
-New-DesktopShortcutSafe -Name "PyTrade Start" -TargetPath $quickStartBat -WorkingDirectory $project
-New-DesktopUrlShortcutSafe -Name "PyTrade Dashboard" -Url "http://localhost:8501"
+$defaultIconDll = Join-Path $env:SystemRoot "System32\imageres.dll"
+$startShortcutIcon = if (Test-Path $venvPython) { "$venvPython,0" } elseif (Test-Path $defaultIconDll) { "$defaultIconDll,13" } else { "" }
+$dashboardIconFile = if (Test-Path $defaultIconDll) { $defaultIconDll } else { "" }
+$dashboardIconIndex = 13
+
+New-DesktopShortcutSafe -Name "PyTrade Start" -TargetPath $quickStartBat -WorkingDirectory $project -IconLocation $startShortcutIcon
+New-DesktopUrlShortcutSafe -Name "PyTrade Dashboard" -Url "http://localhost:8501" -IconFile $dashboardIconFile -IconIndex $dashboardIconIndex
 
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
