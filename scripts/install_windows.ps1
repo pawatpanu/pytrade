@@ -240,10 +240,11 @@ if ($InstallDashboardTask) {
 }
 
 $quickStartBat = Join-Path $project "Quick-Start.bat"
+$projectIconPath = Join-Path $project "assets\pytrade.ico"
 $defaultIconDll = Join-Path $env:SystemRoot "System32\imageres.dll"
-$startShortcutIcon = if (Test-Path $venvPython) { "$venvPython,0" } elseif (Test-Path $defaultIconDll) { "$defaultIconDll,13" } else { "" }
-$dashboardIconFile = if (Test-Path $defaultIconDll) { $defaultIconDll } else { "" }
-$dashboardIconIndex = 13
+$startShortcutIcon = if (Test-Path $projectIconPath) { "$projectIconPath,0" } elseif (Test-Path $venvPython) { "$venvPython,0" } elseif (Test-Path $defaultIconDll) { "$defaultIconDll,13" } else { "" }
+$dashboardIconFile = if (Test-Path $projectIconPath) { $projectIconPath } elseif (Test-Path $defaultIconDll) { $defaultIconDll } else { "" }
+$dashboardIconIndex = if (Test-Path $projectIconPath) { 0 } else { 13 }
 
 New-DesktopShortcutSafe -Name "PyTrade Start" -TargetPath $quickStartBat -WorkingDirectory $project -IconLocation $startShortcutIcon
 New-DesktopUrlShortcutSafe -Name "PyTrade Dashboard" -Url "http://localhost:8501" -IconFile $dashboardIconFile -IconIndex $dashboardIconIndex
