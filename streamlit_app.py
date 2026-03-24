@@ -536,6 +536,7 @@ HELP = {
         "adx_minimum": "Minimum ADX; higher means stronger trend requirement",
         "entry_zone_max_atr": "Max distance from entry zone in ATR",
         "m5_min_triggers": "Minimum number of M5 triggers before entry",
+        "wick_entry_enabled": "Enable/disable wick rejection entry trigger",
         "risk_per_trade_pct": "Risk per trade as % of account",
         "use_mt5_balance_for_sizing": "Use live MT5 account value for dynamic position sizing",
         "risk_balance_source": "Choose equity (recommended) or balance as lot sizing base",
@@ -1291,6 +1292,7 @@ def _config_help_df() -> pd.DataFrame:
         "adx_minimum": "ADX_MINIMUM",
         "entry_zone_max_atr": "ENTRY_ZONE_MAX_ATR",
         "m5_min_triggers": "M5_MIN_TRIGGERS",
+        "wick_entry_enabled": "WICK_ENTRY_ENABLED",
         "risk_per_trade_pct": "RISK_PER_TRADE_PCT",
         "use_mt5_balance_for_sizing": "USE_MT5_BALANCE_FOR_SIZING",
         "risk_balance_source": "RISK_BALANCE_SOURCE",
@@ -3607,6 +3609,7 @@ def _render_config_editor() -> None:
             adx_min = st.number_input("ADX_MINIMUM", min_value=5.0, max_value=50.0, value=_parse_float_env(env, "ADX_MINIMUM", 18.0), step=0.5, help=h("adx_minimum"))
             entry_zone = st.number_input("ENTRY_ZONE_MAX_ATR", min_value=0.5, max_value=5.0, value=_parse_float_env(env, "ENTRY_ZONE_MAX_ATR", 1.8), step=0.1, help=h("entry_zone_max_atr"))
             m5_triggers = st.slider("M5_MIN_TRIGGERS", min_value=1, max_value=4, value=_parse_int_env(env, "M5_MIN_TRIGGERS", 2), help=h("m5_min_triggers"))
+            wick_entry_enabled = st.checkbox("WICK_ENTRY_ENABLED", value=_parse_bool_env(env, "WICK_ENTRY_ENABLED", True), help=h("wick_entry_enabled"))
         with c2:
             risk_pct = st.number_input("RISK_PER_TRADE_PCT", min_value=0.05, max_value=5.0, value=_parse_float_env(env, "RISK_PER_TRADE_PCT", 0.2), step=0.05, format="%.2f", help=h("risk_per_trade_pct"))
             daily_loss = st.number_input("DAILY_LOSS_LIMIT", min_value=10.0, max_value=5000.0, value=_parse_float_env(env, "DAILY_LOSS_LIMIT", 150.0), step=10.0, help=h("daily_loss_limit"))
@@ -3697,6 +3700,7 @@ def _render_config_editor() -> None:
                 "ADX_MINIMUM": f"{adx_min:.2f}",
                 "ENTRY_ZONE_MAX_ATR": f"{entry_zone:.2f}",
                 "M5_MIN_TRIGGERS": str(m5_triggers),
+                "WICK_ENTRY_ENABLED": str(wick_entry_enabled).lower(),
                 "RISK_PER_TRADE_PCT": f"{risk_pct:.2f}",
                 "USE_MT5_BALANCE_FOR_SIZING": str(use_mt5_balance_for_sizing).lower(),
                 "RISK_BALANCE_SOURCE": risk_balance_source,
