@@ -8,6 +8,8 @@ import sqlite3
 import subprocess
 import time
 import zipfile
+import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -29,6 +31,7 @@ PID_FILE = PID_DIR / "daemon_pid.json"
 TASK_DAEMON = "PyTradeDaemon"
 TASK_DASHBOARD = "PyTradeDashboard"
 BANGKOK_TZ = "Asia/Bangkok"
+USD_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 
 TXT = {
     "th": {
@@ -1062,6 +1065,158 @@ def _parse_bool_text(v: str | None, default: bool = False) -> bool:
         return default
     return str(v).strip().lower() in {"1", "true", "yes", "on"}
 
+
+
+
+def _safe_calendar_text(value: object) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def _normalize_calendar_value(value: str) -> str:
+    txt = _safe_calendar_text(value)
+    if not txt:
+        return "-"
+    lowered = txt.lower()
+    if lowered in {"na", "n/a", "none", "-"}:
+        return "-"
+    return txt
+
+
+def _parse_calendar_datetime_utc(date_text: str, time_text: str, timestamp_text: str = "") -> datetime | None:
+    ts = _safe_calendar_text(timestamp_text)
+    if ts.isdigit():
+        try:
+            return datetime.fromtimestamp(int(ts), tz=timezone.utc)
+        except Exception:
+            pass
+
+    d = _safe_calendar_text(date_text)
+    t_raw = _safe_calendar_text(time_text)
+    if not d:
+        return None
+
+    t_lower = t_raw.lower()
+    if not t_raw or t_lower in {"all day", "tentative", ""}:
+        return None
+
+    d_formats = ["%m-%d-%Y", "%Y-%m-%d", "%b %d %Y", "%B %d %Y", "%a %b %d %Y", "%A %B %d %Y"]
+    t_formats = ["%I:%M%p", "%I%p", "%H:%M"]
+    base_date: datetime | None = None
+
+    for dfmt in d_formats:
+        try:
+            base_date = datetime.strptime(d, dfmt)
+            break
+        except Exception:
+            continue
+
+    if base_date is None:
+        return None
+
+    t_compact = t_raw.replace(" ", "").upper()
+    for tfmt in t_formats:
+        try:
+            parsed_time = datetime.strptime(t_compact, tfmt)
+            return datetime(
+                base_date.year,
+                base_date.month,
+                base_date.day,
+                parsed_time.hour,
+                parsed_time.minute,
+                tzinfo=timezone.utc,
+            )
+        except Exception:
+            continue
+
+    return None
+
+
+@st.cache_data(ttl=300)
+def _fetch_usd_high_impact_calendar(limit: int = 20) -> tuple[pd.DataFrame, str | None]:
+    req = urllib.request.Request(
+        USD_CALENDAR_URL,
+        headers={"User-Agent": "pytrade-calendar/1.0"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            raw = resp.read()
+    except Exception as exc:
+        return pd.DataFrame(), str(exc)
+
+    try:
+        root = ET.fromstring(raw)
+    except Exception as exc:
+        return pd.DataFrame(), f"xml_parse_error: {exc}"
+
+    now_utc = datetime.now(timezone.utc)
+    rows: list[dict[str, object]] = []
+
+    for event in root.findall(".//event"):
+        fields: dict[str, str] = {}
+        for child in list(event):
+            fields[child.tag.lower()] = _safe_calendar_text(child.text)
+
+        currency = _safe_calendar_text(fields.get("currency") or fields.get("country"))
+        if currency.upper() != "USD":
+            continue
+
+        impact_raw = _safe_calendar_text(fields.get("impact") or fields.get("impacttitle") or fields.get("impact_type"))
+        impact_lower = impact_raw.lower()
+        if not ("high" in impact_lower or "red" in impact_lower):
+            continue
+
+        dt_utc = _parse_calendar_datetime_utc(fields.get("date", ""), fields.get("time", ""), fields.get("timestamp", ""))
+        if dt_utc is None or dt_utc < now_utc - timedelta(minutes=5):
+            continue
+
+        dt_bkk = dt_utc.astimezone(timezone(timedelta(hours=7)))
+        minutes_left = max(0, int((dt_utc - now_utc).total_seconds() // 60))
+        rows.append(
+            {
+                "time_bkk": dt_bkk.strftime("%Y-%m-%d %H:%M"),
+                "in_min": minutes_left,
+                "event": _safe_calendar_text(fields.get("title") or fields.get("event") or "-") or "-",
+                "previous": _normalize_calendar_value(fields.get("previous", "")),
+                "forecast": _normalize_calendar_value(fields.get("forecast", "")),
+                "actual": _normalize_calendar_value(fields.get("actual", "")),
+                "impact": impact_raw or "High",
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(), None
+
+    df = pd.DataFrame(rows).sort_values(by=["in_min", "time_bkk", "event"], ascending=[True, True, True]).head(max(1, int(limit)))
+    return df, None
+
+
+def _render_usd_red_news_table() -> None:
+    st.markdown("---")
+    st.subheader("USD High Impact News (Upcoming)")
+
+    cal_df, cal_err = _fetch_usd_high_impact_calendar(limit=20)
+    if cal_err:
+        st.caption(f"News calendar unavailable: {cal_err}")
+
+    if cal_df.empty:
+        st.info("No upcoming high-impact USD events in the latest snapshot.")
+        return
+
+    display_cols = ["time_bkk", "in_min", "event", "previous", "forecast", "actual", "impact"]
+    label_map = {
+        "time_bkk": "Time (Bangkok)",
+        "in_min": "In (min)",
+        "event": "Event",
+        "previous": "Previous",
+        "forecast": "Forecast",
+        "actual": "Actual",
+        "impact": "Impact",
+    }
+    show_df = cal_df[display_cols].rename(columns=label_map)
+    st.dataframe(show_df, use_container_width=True, height=260)
 
 def _init_ui_state_from_query() -> None:
     """Restore UI prefs from URL query params once, then keep session changes."""
@@ -2395,6 +2550,8 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
     </div>
     """, unsafe_allow_html=True)
     
+    _render_usd_red_news_table()
+
     # Key metrics with modern card design
     live_open_count = None if bot_open_err else len(bot_open_df.index)
     m = _metrics(db_path, live_open_count=live_open_count)
