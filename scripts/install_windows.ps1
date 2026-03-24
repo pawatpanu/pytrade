@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
     [string]$PythonLauncher = "",
     [switch]$InstallDashboardTask = $true,
@@ -9,6 +9,73 @@ $ErrorActionPreference = "Stop"
 
 function Write-Step([string]$msg) {
     Write-Host "[PyTrade Installer] $msg" -ForegroundColor Cyan
+}
+
+function New-DesktopShortcutSafe {
+    param(
+        [string]$Name,
+        [string]$TargetPath,
+        [string]$Arguments = "",
+        [string]$WorkingDirectory = "",
+        [string]$IconLocation = ""
+    )
+
+    if (-not (Test-Path $TargetPath)) {
+        Write-Host "Shortcut target not found: $TargetPath" -ForegroundColor Yellow
+        return
+    }
+
+    $desktopPaths = @(
+        [Environment]::GetFolderPath("Desktop"),
+        [Environment]::GetFolderPath("CommonDesktopDirectory")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($desktop in $desktopPaths) {
+        if (-not (Test-Path $desktop)) { continue }
+        $shortcutPath = Join-Path $desktop ("$Name.lnk")
+        try {
+            $shortcut = $shell.CreateShortcut($shortcutPath)
+            $shortcut.TargetPath = $TargetPath
+            if ($Arguments) { $shortcut.Arguments = $Arguments }
+            if ($WorkingDirectory) { $shortcut.WorkingDirectory = $WorkingDirectory }
+            if ($IconLocation) { $shortcut.IconLocation = $IconLocation }
+            $shortcut.Save()
+            Write-Step "Created desktop shortcut: $shortcutPath"
+        }
+        catch {
+            Write-Host "Unable to create shortcut at ${shortcutPath}: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+}
+
+function New-DesktopUrlShortcutSafe {
+    param(
+        [string]$Name,
+        [string]$Url
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Url)) { return }
+
+    $desktopPaths = @(
+        [Environment]::GetFolderPath("Desktop"),
+        [Environment]::GetFolderPath("CommonDesktopDirectory")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+    foreach ($desktop in $desktopPaths) {
+        if (-not (Test-Path $desktop)) { continue }
+        $shortcutPath = Join-Path $desktop ("$Name.url")
+        try {
+            @"
+[InternetShortcut]
+URL=$Url
+"@ | Set-Content -Path $shortcutPath -Encoding ASCII
+            Write-Step "Created desktop shortcut: $shortcutPath"
+        }
+        catch {
+            Write-Host "Unable to create URL shortcut at ${shortcutPath}: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
 }
 
 function Invoke-ExternalChecked {
@@ -165,6 +232,10 @@ if ($InstallDashboardTask) {
     Invoke-ExternalChecked -FilePath "schtasks.exe" -Arguments @("/Run", "/TN", "PyTradeDashboard") -FailureMessage "Failed to start PyTradeDashboard"
 }
 
+$quickStartBat = Join-Path $project "Quick-Start.bat"
+New-DesktopShortcutSafe -Name "PyTrade Start" -TargetPath $quickStartBat -WorkingDirectory $project
+New-DesktopUrlShortcutSafe -Name "PyTrade Dashboard" -Url "http://localhost:8501"
+
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
 Write-Host "Python         : $pythonCmd"
@@ -174,4 +245,3 @@ if ($InstallDashboardTask) {
 }
 Write-Host "Logs           : $logDir"
 Write-Host "Dashboard URL  : http://localhost:8501"
-

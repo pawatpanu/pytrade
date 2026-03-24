@@ -10,8 +10,27 @@ function Remove-TaskSafe([string]$taskName) {
         schtasks /End /TN $taskName 2>$null | Out-Null
         schtasks /Delete /F /TN $taskName | Out-Null
         Write-Host "Removed task: $taskName" -ForegroundColor Yellow
-    } else {
+    }
+    else {
         Write-Host "Task not found: $taskName"
+    }
+}
+
+function Remove-DesktopShortcutSafe([string]$nameNoExt) {
+    $desktopPaths = @(
+        [Environment]::GetFolderPath("Desktop"),
+        [Environment]::GetFolderPath("CommonDesktopDirectory")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+    foreach ($desktop in $desktopPaths) {
+        if (-not (Test-Path $desktop)) { continue }
+        foreach ($ext in @(".lnk", ".url")) {
+            $path = Join-Path $desktop ("$nameNoExt$ext")
+            if (Test-Path $path) {
+                Remove-Item -Force $path
+                Write-Host "Removed shortcut: $path" -ForegroundColor Yellow
+            }
+        }
     }
 }
 
@@ -19,6 +38,8 @@ $project = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 Remove-TaskSafe "PyTradeDaemon"
 Remove-TaskSafe "PyTradeDashboard"
+Remove-DesktopShortcutSafe "PyTrade Start"
+Remove-DesktopShortcutSafe "PyTrade Dashboard"
 
 if (-not $KeepVenv) {
     $venvDir = Join-Path $project ".venv"
