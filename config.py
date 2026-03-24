@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import re
@@ -34,6 +34,21 @@ def _parse_csv(value: str | None, default: list[str]) -> list[str]:
     if not value:
         return default
     return [x.strip() for x in value.split(",") if x.strip()]
+
+
+def _parse_bool_map(value: str | None) -> dict[str, bool]:
+    parsed: dict[str, bool] = {}
+    if not value:
+        return parsed
+    for item in value.split(","):
+        if ":" not in item:
+            continue
+        key, raw = item.split(":", 1)
+        norm_key = key.strip().lower()
+        if not norm_key:
+            continue
+        parsed[norm_key] = _parse_bool(raw.strip(), False)
+    return parsed
 
 
 def _parse_weights(value: str | None) -> dict[str, int]:
@@ -72,7 +87,7 @@ PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "hard_filter_mode": "soft",
         "adx_minimum": 12.0,
         "entry_zone_max_atr": 3.5,
-        "m5_min_triggers": 1,
+        "m5_min_triggers": 2,
         "watchlist_threshold": 35,
         "alert_threshold": 45,
         "strong_alert_threshold": 55,
@@ -105,6 +120,8 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "adx_minimum": None,
         "entry_zone_max_atr": None,
         "m5_min_triggers": None,
+        "enable_order_block": None,
+        "enable_wick_entry": None,
         "rsi_buy_low": None,
         "rsi_buy_high": None,
         "rsi_sell_low": None,
@@ -128,11 +145,16 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "structure_mixed_score": 5.0,
         "breakout_body_min_ratio": 0.45,
         "reversal_wick_ratio": 0.45,
+        "order_block_lookback": 24,
+        "order_block_impulse_atr": 0.80,
+        "order_block_buffer_atr": 0.20,
+        "wick_entry_min_ratio": 0.45,
+        "wick_entry_body_max_ratio": 0.45,
     },
     "crypto_major": {
         "adx_minimum": 14.0,
         "entry_zone_max_atr": 2.60,
-        "m5_min_triggers": 1,
+        "m5_min_triggers": 2,
         "rsi_buy_low": 48.0,
         "rsi_buy_high": 68.0,
         "rsi_sell_low": 32.0,
@@ -155,6 +177,11 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "higher_tf_sideway_score": 8.0,
         "structure_mixed_score": 4.0,
         "breakout_body_min_ratio": 0.42,
+        "order_block_lookback": 30,
+        "order_block_impulse_atr": 1.10,
+        "order_block_buffer_atr": 0.25,
+        "wick_entry_min_ratio": 0.52,
+        "wick_entry_body_max_ratio": 0.42,
     },
     "crypto_alt": {
         "adx_minimum": 16.0,
@@ -182,11 +209,16 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "higher_tf_sideway_score": 6.0,
         "structure_mixed_score": 3.0,
         "breakout_body_min_ratio": 0.48,
+        "order_block_lookback": 26,
+        "order_block_impulse_atr": 1.00,
+        "order_block_buffer_atr": 0.22,
+        "wick_entry_min_ratio": 0.50,
+        "wick_entry_body_max_ratio": 0.42,
     },
     "metal": {
         "adx_minimum": 16.0,
         "entry_zone_max_atr": 2.00,
-        "m5_min_triggers": 2,
+        "m5_min_triggers": 3,
         "rsi_buy_low": 46.0,
         "rsi_buy_high": 62.0,
         "rsi_sell_low": 38.0,
@@ -209,6 +241,11 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "higher_tf_sideway_score": 12.0,
         "structure_mixed_score": 6.0,
         "reversal_wick_ratio": 0.50,
+        "order_block_lookback": 22,
+        "order_block_impulse_atr": 0.80,
+        "order_block_buffer_atr": 0.18,
+        "wick_entry_min_ratio": 0.48,
+        "wick_entry_body_max_ratio": 0.40,
     },
     "fx_major": {
         "adx_minimum": 14.0,
@@ -236,6 +273,11 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "higher_tf_sideway_score": 14.0,
         "structure_mixed_score": 6.0,
         "breakout_body_min_ratio": 0.50,
+        "order_block_lookback": 18,
+        "order_block_impulse_atr": 0.65,
+        "order_block_buffer_atr": 0.12,
+        "wick_entry_min_ratio": 0.42,
+        "wick_entry_body_max_ratio": 0.50,
     },
     "energy": {
         "adx_minimum": 18.0,
@@ -263,6 +305,11 @@ ASSET_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "higher_tf_sideway_score": 7.0,
         "structure_mixed_score": 4.0,
         "breakout_body_min_ratio": 0.46,
+        "order_block_lookback": 26,
+        "order_block_impulse_atr": 1.00,
+        "order_block_buffer_atr": 0.22,
+        "wick_entry_min_ratio": 0.50,
+        "wick_entry_body_max_ratio": 0.43,
     },
 }
 
@@ -300,6 +347,10 @@ class Config:
     entry_zone_max_atr: float = field(default_factory=lambda: _parse_float(os.getenv("ENTRY_ZONE_MAX_ATR"), 1.8))
     hard_filter_mode: str = field(default_factory=lambda: os.getenv("HARD_FILTER_MODE", "strict").lower())
     m5_min_triggers: int = field(default_factory=lambda: _parse_int(os.getenv("M5_MIN_TRIGGERS"), 2))
+    order_block_enabled: bool = field(default_factory=lambda: _parse_bool(os.getenv("ORDER_BLOCK_ENABLED"), True))
+    wick_entry_enabled: bool = field(default_factory=lambda: _parse_bool(os.getenv("WICK_ENTRY_ENABLED"), True))
+    order_block_enabled_by_profile: dict[str, bool] = field(default_factory=lambda: _parse_bool_map(os.getenv("ORDER_BLOCK_ENABLED_BY_PROFILE")))
+    wick_entry_enabled_by_profile: dict[str, bool] = field(default_factory=lambda: _parse_bool_map(os.getenv("WICK_ENTRY_ENABLED_BY_PROFILE")))
     anti_dup_score_delta: float = field(default_factory=lambda: _parse_float(os.getenv("ANTI_DUP_SCORE_DELTA"), 5.0))
 
     rsi_buy_low: float = field(default_factory=lambda: _parse_float(os.getenv("RSI_BUY_LOW"), 45.0))
@@ -428,6 +479,8 @@ class Config:
         self._apply_signal_profile()
         self.hard_filter_mode = "soft" if self.hard_filter_mode == "soft" else "strict"
         self.m5_min_triggers = max(1, min(4, int(self.m5_min_triggers)))
+        self.order_block_enabled_by_profile = {k.strip().lower(): bool(v) for k, v in self.order_block_enabled_by_profile.items()}
+        self.wick_entry_enabled_by_profile = {k.strip().lower(): bool(v) for k, v in self.wick_entry_enabled_by_profile.items()}
         if self.min_alert_category not in {"alert", "strong", "premium"}:
             self.min_alert_category = "alert"
         if self.min_execute_category not in {"alert", "strong", "premium"}:
@@ -528,6 +581,18 @@ class Config:
         )
         profile["target_rr"] = float(profile["target_rr"] if profile["target_rr"] is not None else self.target_rr)
         profile["risk_pct_multiplier"] = float(profile.get("risk_pct_multiplier", 1.0) or 1.0)
+        profile_order_block = profile.get("enable_order_block")
+        order_block_enabled = self.order_block_enabled if profile_order_block is None else bool(profile_order_block)
+        profile_wick_entry = profile.get("enable_wick_entry")
+        wick_entry_enabled = self.wick_entry_enabled if profile_wick_entry is None else bool(profile_wick_entry)
+        order_block_override = self.order_block_enabled_by_profile.get(profile_name)
+        if order_block_override is not None:
+            order_block_enabled = bool(order_block_override)
+        wick_entry_override = self.wick_entry_enabled_by_profile.get(profile_name)
+        if wick_entry_override is not None:
+            wick_entry_enabled = bool(wick_entry_override)
+        profile["enable_order_block"] = bool(order_block_enabled)
+        profile["enable_wick_entry"] = bool(wick_entry_enabled)
         return profile
 
     def as_dict(self) -> dict[str, Any]:
@@ -535,5 +600,6 @@ class Config:
 
 
 CONFIG = Config()
+
 
 

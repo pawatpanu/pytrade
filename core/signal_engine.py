@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import asdict
 import logging
@@ -73,6 +73,86 @@ def _volume_spike(df: pd.DataFrame, volume_spike_ratio: float) -> bool:
     row = df.iloc[-2]
     return bool(row["volume"] >= volume_spike_ratio * row["volume_sma20"])
 
+
+
+def _find_order_block_zone(direction: str, m15: pd.DataFrame, profile: dict[str, Any]) -> tuple[float, float] | None:
+    lookback = max(6, int(profile.get("order_block_lookback", 24) or 24))
+    impulse_atr = max(0.1, float(profile.get("order_block_impulse_atr", 0.8) or 0.8))
+    start = max(1, len(m15) - lookback - 3)
+    end = max(start, len(m15) - 2)
+
+    zone: tuple[float, float] | None = None
+    for idx in range(start, end):
+        base = m15.iloc[idx]
+        impulse = m15.iloc[idx + 1]
+        base_open = float(base["open"])
+        base_close = float(base["close"])
+        atr = max(float(base.get("atr14", 0.0) or 0.0), 1e-8)
+        impulse_body = abs(float(impulse["close"] - impulse["open"]))
+
+        if direction == "BUY":
+            valid_base = base_close < base_open
+            displacement = float(impulse["close"]) > float(base["high"])
+        else:
+            valid_base = base_close > base_open
+            displacement = float(impulse["close"]) < float(base["low"])
+
+        if not valid_base or not displacement:
+            continue
+        if impulse_body < (impulse_atr * atr):
+            continue
+
+        lo = min(base_open, base_close)
+        hi = max(base_open, base_close)
+        zone = (lo, hi)
+
+    return zone
+
+
+def _order_block_touch(direction: str, m15: pd.DataFrame, zone: tuple[float, float] | None, profile: dict[str, Any]) -> bool:
+    if zone is None:
+        return False
+    row = m15.iloc[-2]
+    low = float(row["low"])
+    high = float(row["high"])
+    close = float(row["close"])
+    atr = max(float(row.get("atr14", 0.0) or 0.0), 1e-8)
+    buffer = atr * max(0.0, float(profile.get("order_block_buffer_atr", 0.2) or 0.2))
+    zone_low, zone_high = zone
+
+    if direction == "BUY":
+        touched = low <= (zone_high + buffer)
+        accepted = close >= (zone_low - buffer)
+        return bool(touched and accepted)
+
+    touched = high >= (zone_low - buffer)
+    accepted = close <= (zone_high + buffer)
+    return bool(touched and accepted)
+
+
+def _wick_rejection_trigger(direction: str, m5: pd.DataFrame, profile: dict[str, Any]) -> bool:
+    row = m5.iloc[-2]
+    high = float(row["high"])
+    low = float(row["low"])
+    open_ = float(row["open"])
+    close = float(row["close"])
+    candle_range = max(high - low, 1e-8)
+    body = abs(close - open_)
+    body_ratio = body / candle_range
+
+    wick_min_ratio = max(0.1, float(profile.get("wick_entry_min_ratio", 0.45) or 0.45))
+    body_max_ratio = min(0.9, max(0.05, float(profile.get("wick_entry_body_max_ratio", 0.45) or 0.45)))
+
+    if body_ratio > body_max_ratio:
+        return False
+
+    upper_wick = high - max(open_, close)
+    lower_wick = min(open_, close) - low
+
+    if direction == "BUY":
+        return bool(lower_wick / candle_range >= wick_min_ratio and close >= open_)
+
+    return bool(upper_wick / candle_range >= wick_min_ratio and close <= open_)
 
 def _safe_volume_ratio(df: pd.DataFrame) -> float:
     row = df.iloc[-2]
@@ -341,21 +421,31 @@ def _evaluate_direction(
     }
     score, component_scores, reasons = calculate_confidence(context, cfg)
 
-    trigger_conditions = [
-        _momentum_candle(direction, m5),
-        _macd_cross(direction, m5),
-        _stoch_cross(direction, m5),
-        _volume_spike(m5, float(asset_profile["volume_spike_ratio"])),
-    ]
-    trigger_count = sum(bool(x) for x in trigger_conditions)
+    enable_order_block = bool(asset_profile.get("enable_order_block", True))
+    enable_wick_entry = bool(asset_profile.get("enable_wick_entry", True))
 
-    min_triggers = max(1, min(4, int(asset_profile["m5_min_triggers"])))
+    order_block_zone = _find_order_block_zone(direction, m15, asset_profile) if enable_order_block else None
+    order_block_touch = _order_block_touch(direction, m15, order_block_zone, asset_profile) if enable_order_block else False
+    wick_entry = _wick_rejection_trigger(direction, m5, asset_profile) if enable_wick_entry else False
+
+    trigger_checks: list[tuple[str, bool]] = [
+        ("momentum", _momentum_candle(direction, m5)),
+        ("macd", _macd_cross(direction, m5)),
+        ("stoch", _stoch_cross(direction, m5)),
+        ("volume", _volume_spike(m5, float(asset_profile["volume_spike_ratio"]))),
+        ("order_block", order_block_touch),
+        ("wick_entry", wick_entry),
+    ]
+    trigger_count = sum(1 for _, passed in trigger_checks if passed)
+    trigger_total = len(trigger_checks)
+
+    min_triggers = max(1, min(trigger_total, int(asset_profile["m5_min_triggers"])))
     risk_pct = float(cfg.risk_per_trade_pct) * float(asset_profile.get("risk_pct_multiplier", 1.0))
     sl_atr_multiplier = float(asset_profile["sl_atr_multiplier"])
     target_rr = float(asset_profile["target_rr"])
 
     if trigger_count < min_triggers:
-        reasons.append(f"trigger={trigger_count}/4")
+        reasons.append(f"trigger={trigger_count}/{trigger_total}")
         trade_plan = build_trade_plan(
             direction=direction,
             entry_price=price,
@@ -377,7 +467,7 @@ def _evaluate_direction(
             reason_summary="; ".join(reasons),
             indicator_snapshot=_build_indicator_snapshot(m15),
             hard_filters_passed=True,
-            hard_filter_reasons=[f"M5 trigger < {min_triggers}/4"],
+            hard_filter_reasons=[f"M5 trigger < {min_triggers}/{trigger_total}"],
             component_scores=component_scores,
             trade_plan=asdict(trade_plan),
         )
@@ -386,6 +476,12 @@ def _evaluate_direction(
         reasons.append(f"support={support:.2f}")
     if resistance is not None:
         reasons.append(f"resistance={resistance:.2f}")
+    if order_block_zone is not None:
+        reasons.append(f"ob_zone={order_block_zone[0]:.2f}-{order_block_zone[1]:.2f}")
+    if order_block_touch:
+        reasons.append("ob_touch")
+    if wick_entry:
+        reasons.append("wick_entry")
 
     category = classify_score(
         score=score,
@@ -442,3 +538,5 @@ def evaluate_sell_signal(
 ) -> SignalResult:
     """Evaluate SELL signal using MTF logic + hard filters + scoring."""
     return _evaluate_direction(symbol, normalized_symbol, "SELL", mtf_data, cfg, market_context=market_context)
+
+

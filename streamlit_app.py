@@ -3973,7 +3973,6 @@ def main() -> None:
         st.markdown("---")
         _render_controls(db_path, is_admin)
         st.markdown("---")
-        _render_access_controls(env)
     
     # Build tab configuration (ordered by usage frequency)
     tab_options = [
@@ -4052,4 +4051,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
