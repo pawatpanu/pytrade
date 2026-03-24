@@ -37,6 +37,13 @@ param(
     [string]$UltraStackExtraSlots = "",
     [string]$ScanIntervalSeconds = "",
     [string]$SyncIntervalSeconds = "",
+    [string]$AppAdminPassword = "",
+    [string]$BtcPullbackEntryEnabled = "",
+    [string]$BtcPullbackMinRetraceR = "",
+    [string]$OrderBlockEnabled = "",
+    [string]$WickEntryEnabled = "",
+    [string]$OrderBlockEnabledByProfile = "",
+    [string]$WickEntryEnabledByProfile = "",
     [switch]$NonInteractive
 )
 
@@ -133,6 +140,13 @@ if ($UltraStackScore) { Upsert-EnvKey $envPath "ULTRA_STACK_SCORE" $UltraStackSc
 if ($UltraStackExtraSlots) { Upsert-EnvKey $envPath "ULTRA_STACK_EXTRA_SLOTS" $UltraStackExtraSlots }
 if ($ScanIntervalSeconds) { Upsert-EnvKey $envPath "SCAN_INTERVAL_SECONDS" $ScanIntervalSeconds }
 if ($SyncIntervalSeconds) { Upsert-EnvKey $envPath "SYNC_INTERVAL_SECONDS" $SyncIntervalSeconds }
+if ($AppAdminPassword) { Upsert-EnvKey $envPath "APP_ADMIN_PASSWORD" $AppAdminPassword }
+if ($BtcPullbackEntryEnabled) { Upsert-EnvKey $envPath "BTC_PULLBACK_ENTRY_ENABLED" $BtcPullbackEntryEnabled }
+if ($BtcPullbackMinRetraceR) { Upsert-EnvKey $envPath "BTC_PULLBACK_MIN_RETRACE_R" $BtcPullbackMinRetraceR }
+if ($OrderBlockEnabled) { Upsert-EnvKey $envPath "ORDER_BLOCK_ENABLED" $OrderBlockEnabled }
+if ($WickEntryEnabled) { Upsert-EnvKey $envPath "WICK_ENTRY_ENABLED" $WickEntryEnabled }
+if ($OrderBlockEnabledByProfile) { Upsert-EnvKey $envPath "ORDER_BLOCK_ENABLED_BY_PROFILE" $OrderBlockEnabledByProfile }
+if ($WickEntryEnabledByProfile) { Upsert-EnvKey $envPath "WICK_ENTRY_ENABLED_BY_PROFILE" $WickEntryEnabledByProfile }
 
 switch ($Preset.ToLower()) {
     "aggressive" {
