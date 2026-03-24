@@ -593,11 +593,17 @@ class ExecutionEngine:
 
     def _max_open_positions_for_signal(self, signal: SignalResult) -> int:
         max_open = int(self.config.max_open_positions)
-        if signal.category == "premium" and self.config.enable_premium_stack:
+        category = str(getattr(signal, "category", "") or "").lower()
+        score = float(getattr(signal, "score", 0.0) or 0.0)
+
+        if category == "premium" and self.config.enable_premium_stack:
             max_open += int(self.config.premium_stack_extra_slots)
-        # FIX: Check category instead of raw score for consistency
-        if signal.category == "ultra" and self.config.enable_ultra_stack:
+
+        # Ultra stack is score-driven by config threshold and can stack on top of premium slots.
+        is_ultra = category == "ultra" or score >= float(self.config.ultra_stack_score)
+        if is_ultra and self.config.enable_ultra_stack:
             max_open += int(self.config.ultra_stack_extra_slots)
+
         return max(1, max_open)
 
     def _btc_pullback_ready(self, signal: SignalResult, current_price: float) -> tuple[bool, str]:

@@ -224,7 +224,6 @@ Preset:
 - `aggressive`
 - `balanced`
 - `premium`
-- `ultra_premium`
 
 ปรับได้ในฟอร์ม:
 - Symbols / Hard Filters / Thresholds
