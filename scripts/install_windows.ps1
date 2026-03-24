@@ -98,6 +98,78 @@ function Invoke-ExternalChecked {
     }
 }
 
+function New-StartupShortcutSafe {
+    param(
+        [string]$Name,
+        [string]$TargetPath,
+        [string]$Arguments = "",
+        [string]$WorkingDirectory = ""
+    )
+
+    $startupDir = [Environment]::GetFolderPath("Startup")
+    if ([string]::IsNullOrWhiteSpace($startupDir) -or -not (Test-Path $startupDir)) {
+        Write-Host "Startup folder unavailable; cannot create startup shortcut." -ForegroundColor Yellow
+        return $false
+    }
+
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcutPath = Join-Path $startupDir ("$Name.lnk")
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = $TargetPath
+        if ($Arguments) { $shortcut.Arguments = $Arguments }
+        if ($WorkingDirectory) { $shortcut.WorkingDirectory = $WorkingDirectory }
+        $shortcut.Save()
+        Write-Step "Created startup shortcut: $shortcutPath"
+        return $true
+    }
+    catch {
+        Write-Host "Unable to create startup shortcut: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+function Try-RegisterScheduledTask {
+    param(
+        [string]$TaskName,
+        [string]$RunnerScriptPath
+    )
+
+    & schtasks.exe /Create /F /SC ONLOGON /TN $TaskName /TR "powershell -NoProfile -ExecutionPolicy Bypass -File `"$RunnerScriptPath`""
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
+
+    Write-Host "Task creation failed for $TaskName (exit code: $LASTEXITCODE). Falling back to Startup shortcut." -ForegroundColor Yellow
+    return $false
+}
+
+function Ensure-PersistentRunner {
+    param(
+        [string]$TaskName,
+        [string]$RunnerScriptPath,
+        [string]$StartupShortcutName,
+        [string]$ProjectRoot
+    )
+
+    if (Try-RegisterScheduledTask -TaskName $TaskName -RunnerScriptPath $RunnerScriptPath) {
+        Write-Step "Starting scheduled task now: $TaskName"
+        & schtasks.exe /Run /TN $TaskName | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Unable to start task $TaskName immediately (exit code: $LASTEXITCODE). It will run at next logon." -ForegroundColor Yellow
+        }
+        return "task"
+    }
+
+    $startupOk = New-StartupShortcutSafe -Name $StartupShortcutName -TargetPath "powershell.exe" -Arguments "-NoProfile -ExecutionPolicy Bypass -File `"$RunnerScriptPath`"" -WorkingDirectory $ProjectRoot
+    if ($startupOk) {
+        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $RunnerScriptPath -WindowStyle Hidden
+        return "startup"
+    }
+
+    throw "Failed to configure persistent startup for $TaskName"
+}
+
 function Test-PythonCommand([string]$CommandPath) {
     if ([string]::IsNullOrWhiteSpace($CommandPath)) { return $false }
     try {
@@ -223,20 +295,13 @@ New-Item -ItemType Directory -Force -Path "$logDir" | Out-Null
 & "$venvPython" -m streamlit run streamlit_app.py --server.port 8501 --server.address 127.0.0.1 *>> "$logDir\dashboard.log"
 "@ | Set-Content -Path $dashboardRunner -Encoding UTF8
 
-Write-Step "Registering scheduled task: PyTradeDaemon"
-Invoke-ExternalChecked -FilePath "schtasks.exe" -Arguments @("/Create", "/F", "/SC", "ONLOGON", "/TN", "PyTradeDaemon", "/TR", "powershell -NoProfile -ExecutionPolicy Bypass -File `"$daemonRunner`"") -FailureMessage "Failed to create scheduled task PyTradeDaemon"
+Write-Step "Configuring persistence for daemon..."
+$daemonPersistence = Ensure-PersistentRunner -TaskName "PyTradeDaemon" -RunnerScriptPath $daemonRunner -StartupShortcutName "PyTradeDaemon Startup" -ProjectRoot $project
 
+$dashboardPersistence = "disabled"
 if ($InstallDashboardTask) {
-    Write-Step "Registering scheduled task: PyTradeDashboard"
-    Invoke-ExternalChecked -FilePath "schtasks.exe" -Arguments @("/Create", "/F", "/SC", "ONLOGON", "/TN", "PyTradeDashboard", "/TR", "powershell -NoProfile -ExecutionPolicy Bypass -File `"$dashboardRunner`"") -FailureMessage "Failed to create scheduled task PyTradeDashboard"
-}
-
-Write-Step "Starting daemon task now..."
-Invoke-ExternalChecked -FilePath "schtasks.exe" -Arguments @("/Run", "/TN", "PyTradeDaemon") -FailureMessage "Failed to start PyTradeDaemon"
-
-if ($InstallDashboardTask) {
-    Write-Step "Starting dashboard task now..."
-    Invoke-ExternalChecked -FilePath "schtasks.exe" -Arguments @("/Run", "/TN", "PyTradeDashboard") -FailureMessage "Failed to start PyTradeDashboard"
+    Write-Step "Configuring persistence for dashboard..."
+    $dashboardPersistence = Ensure-PersistentRunner -TaskName "PyTradeDashboard" -RunnerScriptPath $dashboardRunner -StartupShortcutName "PyTradeDashboard Startup" -ProjectRoot $project
 }
 
 $quickStartBat = Join-Path $project "Quick-Start.bat"
@@ -251,10 +316,10 @@ New-DesktopUrlShortcutSafe -Name "PyTrade Dashboard" -Url "http://localhost:8501
 
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
-Write-Host "Python         : $pythonCmd"
-Write-Host "Daemon task    : PyTradeDaemon"
+Write-Host "Python              : $pythonCmd"
+Write-Host "Daemon persistence  : $daemonPersistence"
 if ($InstallDashboardTask) {
-    Write-Host "Dashboard task : PyTradeDashboard"
+    Write-Host "Dashboard persistence: $dashboardPersistence"
 }
-Write-Host "Logs           : $logDir"
-Write-Host "Dashboard URL  : http://localhost:8501"
+Write-Host "Logs                : $logDir"
+Write-Host "Dashboard URL       : http://localhost:8501"

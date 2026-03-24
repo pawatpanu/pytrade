@@ -34,12 +34,25 @@ function Remove-DesktopShortcutSafe([string]$nameNoExt) {
     }
 }
 
+function Remove-StartupShortcutSafe([string]$nameNoExt) {
+    $startupDir = [Environment]::GetFolderPath("Startup")
+    if ([string]::IsNullOrWhiteSpace($startupDir) -or -not (Test-Path $startupDir)) { return }
+
+    $path = Join-Path $startupDir ("$nameNoExt.lnk")
+    if (Test-Path $path) {
+        Remove-Item -Force $path
+        Write-Host "Removed startup shortcut: $path" -ForegroundColor Yellow
+    }
+}
+
 $project = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 Remove-TaskSafe "PyTradeDaemon"
 Remove-TaskSafe "PyTradeDashboard"
 Remove-DesktopShortcutSafe "PyTrade Start"
 Remove-DesktopShortcutSafe "PyTrade Dashboard"
+Remove-StartupShortcutSafe "PyTradeDaemon Startup"
+Remove-StartupShortcutSafe "PyTradeDashboard Startup"
 
 if (-not $KeepVenv) {
     $venvDir = Join-Path $project ".venv"
