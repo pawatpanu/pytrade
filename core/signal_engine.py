@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import asdict
 import logging
@@ -267,7 +267,7 @@ def _hard_filters(
 
         if h1_trend == "bearish" and (strict_mode or m15_trend != "bullish") and not metal_override:
             reasons.append("H1 bearish conflict")
-        if m15_trend == "bearish" and m5_trend == "bearish" and not metal_override:
+        if strict_mode and m15_trend == "bearish" and m5_trend == "bearish" and not metal_override:
             reasons.append("Severe lower TF conflict")
     else:
         if h4_trend == "bullish":
@@ -280,7 +280,7 @@ def _hard_filters(
 
         if h1_trend == "bullish" and (strict_mode or m15_trend != "bearish") and not metal_override:
             reasons.append("H1 bullish conflict")
-        if m15_trend == "bullish" and m5_trend == "bullish" and not metal_override:
+        if strict_mode and m15_trend == "bullish" and m5_trend == "bullish" and not metal_override:
             reasons.append("Severe lower TF conflict")
 
     if cfg.enable_volume_regime_filter:
@@ -440,6 +440,8 @@ def _evaluate_direction(
     trigger_total = len(trigger_checks)
 
     min_triggers = max(1, min(trigger_total, int(asset_profile["m5_min_triggers"])))
+    if cfg.hard_filter_mode == "soft":
+        min_triggers = 1
     risk_pct = float(cfg.risk_per_trade_pct) * float(asset_profile.get("risk_pct_multiplier", 1.0))
     sl_atr_multiplier = float(asset_profile["sl_atr_multiplier"])
     target_rr = float(asset_profile["target_rr"])
@@ -538,5 +540,3 @@ def evaluate_sell_signal(
 ) -> SignalResult:
     """Evaluate SELL signal using MTF logic + hard filters + scoring."""
     return _evaluate_direction(symbol, normalized_symbol, "SELL", mtf_data, cfg, market_context=market_context)
-
-
