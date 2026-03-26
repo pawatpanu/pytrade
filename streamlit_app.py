@@ -1722,24 +1722,44 @@ def _load_env_db_path() -> Path:
     return (ROOT / env.get("DB_PATH", "signals.db")).resolve()
 
 
-def _db_orders_count(db_path: Path) -> int:
+def _db_activity_count(db_path: Path) -> int:
     if not db_path.exists():
         return 0
+    total = 0
     try:
         with _db_connect(db_path) as conn:
-            row = conn.execute("SELECT COUNT(*) AS c FROM orders").fetchone()
-            return int(row["c"] or 0) if row else 0
+            for table in ("orders", "signals", "scan_events"):
+                try:
+                    row = conn.execute(f"SELECT COUNT(*) AS c FROM {table}").fetchone()
+                    total += int(row["c"] or 0) if row else 0
+                except sqlite3.Error:
+                    continue
     except sqlite3.Error:
         return 0
+    return total
 
 
 def _resolve_display_db_path(configured_db_path: Path) -> tuple[Path, bool]:
-    """Return the best DB for read-only dashboard display, with legacy fallback."""
-    if _db_orders_count(configured_db_path) > 0:
+    """Return the DB for the currently active login only."""
+    configured_db_path = configured_db_path.resolve()
+    if _db_activity_count(configured_db_path) > 0:
         return configured_db_path, False
-    legacy_db = (ROOT / "signals.db").resolve()
-    if legacy_db != configured_db_path and _db_orders_count(legacy_db) > 0:
-        return legacy_db, True
+
+    env = _load_env_map()
+    account_mode = str(env.get("ACCOUNT_MODE", env.get("EXECUTION_MODE", "demo"))).strip().lower()
+    if account_mode not in {"demo", "live"}:
+        account_mode = "demo"
+
+    login = str(env.get("MT5_LOGIN", "")).strip()
+    if not login:
+        mode_key = "DEMO" if account_mode == "demo" else "LIVE"
+        login = str(env.get(f"MT5_LOGIN_{mode_key}", "")).strip()
+
+    if login:
+        account_db = (ROOT / _account_db_path(account_mode, login)).resolve()
+        if account_db != configured_db_path and _db_activity_count(account_db) > 0:
+            return account_db, True
+
     return configured_db_path, False
 
 
@@ -2510,9 +2530,17 @@ def _mt5_bot_activity_summary(env: dict[str, str], *, lookback_days: int = 30) -
             pass
 
 
-def _render_controls(db_path: Path, is_admin: bool) -> None:
+def _render_controls(
+    db_path: Path,
+    is_admin: bool,
+    *,
+    configured_db_path: Path | None = None,
+    using_fallback: bool = False,
+) -> None:
     st.sidebar.header(t("controls"))
     st.sidebar.caption(f"{t('db')}: {db_path}")
+    if using_fallback and configured_db_path and configured_db_path.resolve() != db_path.resolve():
+        st.sidebar.caption(f"{t('db_fallback')}: {configured_db_path.name} -> {db_path.name}")
     st.sidebar.write(f"{t('daemon')}: **{_daemon_status()}**")
     env = _load_env_map()
     signal_profile = env.get("SIGNAL_PROFILE", "custom")
@@ -4337,12 +4365,18 @@ def main() -> None:
     env = _load_env_map()
     _ensure_access_session(env)
     is_admin = _is_admin()
-    db_path = _load_env_db_path()
+    configured_db_path = _load_env_db_path()
+    db_path, using_db_fallback = _resolve_display_db_path(configured_db_path)
     
     # Render controls in sidebar
     with st.sidebar:
         st.markdown("---")
-        _render_controls(db_path, is_admin)
+        _render_controls(
+            db_path,
+            is_admin,
+            configured_db_path=configured_db_path,
+            using_fallback=using_db_fallback,
+        )
         st.markdown("---")
     
     # Build tab configuration (ordered by usage frequency)
@@ -4401,7 +4435,7 @@ def main() -> None:
         elif selected_key == "portfolio":
             _render_portfolio()
         elif selected_key == "health":
-            _render_system_health(db_path, is_admin)
+            _render_system_health(configured_db_path, is_admin)
         elif selected_key == "config":
             if is_admin:
                 _render_config_editor()

@@ -152,12 +152,14 @@ class ExecutionEngine:
 
     def sync_orders(self) -> None:
         """Sync locally-sent orders with MT5 to update close status and realized PnL."""
+        open_positions = mt5.positions_get() or []
+        self._import_missing_open_positions(open_positions)
+        self._import_missing_closed_positions(lookback_days=7)
         sent_orders = self.db.get_sent_orders()
         if not sent_orders:
             return
 
         now = datetime.now(timezone.utc)
-        open_positions = mt5.positions_get() or []
         open_positions_by_symbol: dict[str, list[object]] = {}
         open_by_symbol: dict[str, set[int]] = {}
         for p in open_positions:
@@ -272,6 +274,167 @@ class ExecutionEngine:
 
             self.db.update_order_close(order_id=order_id, pnl=round(pnl, 2), closed_at=latest_time.isoformat())
             logger.info("Order closed sync: id=%s symbol=%s pnl=%.2f", order_id, symbol, pnl)
+
+    def _import_missing_open_positions(self, open_positions: list[object]) -> None:
+        """Import bot-owned MT5 positions that are not yet present in the local orders table."""
+        for position in open_positions:
+            if int(getattr(position, "magic", 0) or 0) != int(self.config.magic_number):
+                continue
+
+            ticket = int(getattr(position, "ticket", 0) or 0)
+            position_id = int(getattr(position, "identifier", 0) or 0)
+            if ticket <= 0 and position_id <= 0:
+                continue
+
+            existing = self.db.get_sent_orders()
+            already_logged = False
+            for row in existing:
+                row_position = int(row["mt5_position"] or 0)
+                row_order = int(row["mt5_order"] or 0)
+                if ticket > 0 and ticket in {row_position, row_order}:
+                    already_logged = True
+                    break
+                if position_id > 0 and position_id in {row_position, row_order}:
+                    already_logged = True
+                    break
+            if already_logged:
+                continue
+
+            symbol = str(getattr(position, "symbol", ""))
+            direction = self._position_direction(position)
+            opened_at = datetime.fromtimestamp(int(getattr(position, "time", 0) or 0), tz=timezone.utc).isoformat()
+            entry_price = float(getattr(position, "price_open", 0.0) or 0.0)
+            stop_loss = float(getattr(position, "sl", 0.0) or 0.0) or None
+            take_profit = float(getattr(position, "tp", 0.0) or 0.0) or None
+            volume = float(getattr(position, "volume", 0.0) or 0.0) or None
+            mt5_order = ticket if ticket > 0 else position_id
+            mt5_position = position_id if position_id > 0 else ticket
+
+            self.db.log_order(
+                timestamp=opened_at,
+                symbol=symbol,
+                normalized_symbol=symbol,
+                direction=direction,
+                category="imported",
+                score=0.0,
+                entry_price=entry_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                volume=volume,
+                risk_amount=None,
+                status="sent",
+                reason="imported_open_sync",
+                mt5_order=mt5_order,
+                mt5_position=mt5_position,
+                comment="imported_from_mt5_sync",
+            )
+            logger.info(
+                "Imported missing open MT5 position into DB: symbol=%s direction=%s ticket=%s position_id=%s",
+                symbol,
+                direction,
+                ticket,
+                position_id,
+            )
+
+    def _import_missing_closed_positions(self, lookback_days: int = 7) -> None:
+        """Import bot-owned closed MT5 positions that are missing from the local orders table."""
+        time_to = datetime.now(timezone.utc)
+        time_from = time_to - timedelta(days=max(1, lookback_days))
+        deals = mt5.history_deals_get(time_from, time_to) or []
+
+        grouped: dict[int, list[object]] = {}
+        for deal in deals:
+            position_id = int(getattr(deal, "position_id", 0) or 0)
+            if position_id <= 0:
+                continue
+            grouped.setdefault(position_id, []).append(deal)
+
+        for position_id, group in grouped.items():
+            if self._order_exists(mt5_position=position_id, status="closed"):
+                continue
+
+            in_deals: list[object] = []
+            out_deals: list[object] = []
+            has_bot_entry = False
+            for deal in group:
+                entry = int(getattr(deal, "entry", -1) or -1)
+                deal_type = int(getattr(deal, "type", -1) or -1)
+                profit = float(getattr(deal, "profit", 0.0) or 0.0)
+                is_entry_deal = entry == int(mt5.DEAL_ENTRY_IN) or (entry == -1 and deal_type in (int(mt5.DEAL_TYPE_BUY), int(mt5.DEAL_TYPE_SELL)))
+                if is_entry_deal:
+                    in_deals.append(deal)
+                    if int(getattr(deal, "magic", 0) or 0) == int(self.config.magic_number):
+                        has_bot_entry = True
+                elif entry in (int(mt5.DEAL_ENTRY_OUT), int(mt5.DEAL_ENTRY_OUT_BY)) or deal_type not in (int(mt5.DEAL_TYPE_BUY), int(mt5.DEAL_TYPE_SELL)) or abs(profit) > 1e-12:
+                    out_deals.append(deal)
+
+            if not has_bot_entry:
+                continue
+
+            if not in_deals or not out_deals:
+                continue
+
+            in_deals.sort(key=lambda d: int(getattr(d, "time", 0) or 0))
+            out_deals.sort(key=lambda d: int(getattr(d, "time", 0) or 0))
+            first_in = in_deals[0]
+            last_out = out_deals[-1]
+            direction = "BUY" if int(getattr(first_in, "type", -1) or -1) == int(mt5.DEAL_TYPE_BUY) else "SELL"
+            opened_at = datetime.fromtimestamp(int(getattr(first_in, "time", 0) or 0), tz=timezone.utc).isoformat()
+            closed_at = datetime.fromtimestamp(int(getattr(last_out, "time", 0) or 0), tz=timezone.utc).isoformat()
+            total_pnl = round(sum(
+                float(getattr(d, "profit", 0.0) or 0.0)
+                + float(getattr(d, "commission", 0.0) or 0.0)
+                + float(getattr(d, "swap", 0.0) or 0.0)
+                for d in out_deals
+            ), 2)
+
+            self.db.log_order(
+                timestamp=opened_at,
+                symbol=str(getattr(first_in, "symbol", "")),
+                normalized_symbol=str(getattr(first_in, "symbol", "")),
+                direction=direction,
+                category="imported",
+                score=0.0,
+                entry_price=float(getattr(first_in, "price", 0.0) or 0.0),
+                stop_loss=None,
+                take_profit=None,
+                volume=float(getattr(first_in, "volume", 0.0) or 0.0) or None,
+                risk_amount=None,
+                status="closed",
+                reason="imported_history_sync",
+                mt5_order=int(getattr(last_out, "order", 0) or 0) or position_id,
+                mt5_position=position_id,
+                comment="imported_from_mt5_sync_history",
+                pnl=total_pnl,
+                closed_at=closed_at,
+            )
+            logger.info(
+                "Imported missing closed MT5 position into DB: symbol=%s direction=%s position_id=%s pnl=%.2f",
+                str(getattr(first_in, "symbol", "")),
+                direction,
+                position_id,
+                total_pnl,
+            )
+
+    def _order_exists(self, *, mt5_position: int | None = None, mt5_order: int | None = None, status: str | None = None) -> bool:
+        clauses: list[str] = []
+        params: list[object] = []
+        if mt5_position and mt5_position > 0:
+            clauses.append("mt5_position = ?")
+            params.append(int(mt5_position))
+        if mt5_order and mt5_order > 0:
+            clauses.append("mt5_order = ?")
+            params.append(int(mt5_order))
+        if not clauses:
+            return False
+        sql = f"SELECT 1 FROM orders WHERE ({' OR '.join(clauses)})"
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        sql += " LIMIT 1"
+        with self.db._connect() as conn:
+            row = conn.execute(sql, params).fetchone()
+        return row is not None
 
     def _pick_open_position(
         self,
