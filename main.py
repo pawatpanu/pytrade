@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import sys
+import socket
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from statistics import mean
 
 import pandas as pd
@@ -21,6 +25,65 @@ from core.symbol_manager import SymbolManager
 from core.utils import setup_logging, timeframe_minutes
 
 logger = logging.getLogger(__name__)
+_DAEMON_LOCK_FH = None
+_DAEMON_LOCK_SOCKET = None
+
+
+def _acquire_daemon_single_instance_lock() -> None:
+    """Best-effort single-instance guard for daemon mode.
+
+    Streamlit / launcher flows can accidentally spawn multiple daemons. This lock
+    ensures only one daemon keeps running on a machine at a time.
+    """
+    global _DAEMON_LOCK_FH, _DAEMON_LOCK_SOCKET
+    if _DAEMON_LOCK_FH is not None or _DAEMON_LOCK_SOCKET is not None:
+        return
+    runtime_dir = Path(__file__).resolve().parent / ".runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = runtime_dir / "pytrade_daemon.lock"
+
+    fh = open(lock_path, "a+", encoding="utf-8")
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        logger.error("Another PyTrade daemon is already running (lock: %s). Exiting.", lock_path)
+        try:
+            fh.close()
+        finally:
+            sys.exit(0)
+
+    _DAEMON_LOCK_FH = fh
+    # Socket-based guard is more reliable on Windows than file locks alone.
+    port = int(os.getenv("PYTRADE_DAEMON_LOCK_PORT", "51237") or 51237)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, getattr(socket, "SO_EXCLUSIVEADDRUSE", 0), 1)
+        except Exception:
+            pass
+        sock.bind(("127.0.0.1", port))
+        sock.listen(1)
+    except OSError:
+        logger.error("Another PyTrade daemon is already running (port lock: %s). Exiting.", port)
+        try:
+            fh.close()
+        except Exception:
+            pass
+        try:
+            sock.close()
+        except Exception:
+            pass
+        sys.exit(0)
+
+    _DAEMON_LOCK_SOCKET = sock
 
 
 def _prepare_mtf_data(fetcher: DataFetcher, symbol: str, cfg=CONFIG) -> dict[str, pd.DataFrame]:
@@ -146,6 +209,7 @@ def _scan_cycle(
 def run_scanner(once: bool = False) -> None:
     """Run live scanner loop (analysis + alert only, no auto-trade)."""
     setup_logging(CONFIG.log_level)
+    _acquire_daemon_single_instance_lock()
     logger.info(
         "Scanner config: profile=%s mode=%s adx_min=%.2f entry_zone_max_atr=%.2f m5_min_triggers=%s min_alert_category=%s thresholds=[%s,%s,%s,%s] risk=[bal=%.2f pct=%.2f sl_atr=%.2f rr=%.2f] exec=[enabled=%s mode=%s min_cat=%s max_open=%s day_loss=%.2f cooldown=%s]",
         CONFIG.signal_profile,
@@ -270,8 +334,6 @@ def run_backtest() -> None:
         logger.info("Threshold sensitivity: %s", threshold_counts)
     finally:
         connector.disconnect()
-
-
 def run_sync() -> None:
     """Sync existing sent orders with MT5 history/positions only (no scanning, no new orders)."""
     setup_logging(CONFIG.log_level)
@@ -285,10 +347,10 @@ def run_sync() -> None:
     finally:
         connector.disconnect()
 
-
 def run_daemon() -> None:
     """Run scan + sync in one continuous loop using independent intervals."""
     setup_logging(CONFIG.log_level)
+    _acquire_daemon_single_instance_lock()
     logger.info(
         "Daemon mode: scan_interval=%ss sync_interval=%ss summary_interval=%ss",
         CONFIG.scan_interval_seconds,
@@ -362,3 +424,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+

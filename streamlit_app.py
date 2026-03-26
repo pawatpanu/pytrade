@@ -3,8 +3,10 @@ from __future__ import annotations
 import io
 import hmac
 import json
+import os
 import re
 import sqlite3
+import socket
 import subprocess
 import time
 import zipfile
@@ -28,6 +30,8 @@ ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
 PID_DIR = ROOT / ".runtime"
 PID_FILE = PID_DIR / "daemon_pid.json"
+DAEMON_LOCK_FILE = PID_DIR / "pytrade_daemon.lock"
+DAEMON_LOCK_PORT = int(os.getenv("PYTRADE_DAEMON_LOCK_PORT", "51237") or 51237)
 TASK_DAEMON = "PyTradeDaemon"
 TASK_DASHBOARD = "PyTradeDashboard"
 BANGKOK_TZ = "Asia/Bangkok"
@@ -2033,6 +2037,50 @@ def _task_action(task_name: str, action: str) -> tuple[bool, str]:
     return code == 0, (out or err or "ok")
 
 
+
+def _daemon_lock_held() -> bool:
+    """Return True when a daemon instance holds the lock."""
+
+    try:
+        with socket.create_connection(("127.0.0.1", DAEMON_LOCK_PORT), timeout=0.25):
+            return True
+    except OSError:
+        pass
+
+    try:
+        PID_DIR.mkdir(parents=True, exist_ok=True)
+        fh = open(DAEMON_LOCK_FILE, "a+", encoding="utf-8")
+    except Exception:
+        return False
+
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            fh.seek(0)
+            try:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                return True
+            else:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+                return False
+
+        import fcntl
+
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return True
+        else:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            return False
+    finally:
+        try:
+            fh.close()
+        except Exception:
+            pass
+
 def _is_pid_running(pid: int) -> bool:
     code, out, _ = _run_command(["tasklist", "/FI", f"PID eq {pid}"])
     return code == 0 and str(pid) in out
@@ -2070,6 +2118,12 @@ def _clear_pid_info() -> None:
 
 
 def _start_daemon() -> tuple[bool, str]:
+    if _daemon_lock_held():
+        info = _read_pid_info()
+        if info and _is_pid_running(int(info.get("pid", 0))):
+            return False, f"Daemon already running (PID={info['pid']})"
+        return False, "Daemon already running"
+
     info = _read_pid_info()
     if info and _is_pid_running(int(info.get("pid", 0))):
         return False, f"Daemon already running (PID={info['pid']})"
@@ -2088,7 +2142,6 @@ def _start_daemon() -> tuple[bool, str]:
     _write_pid_info(proc.pid)
     return True, f"Daemon started (PID={proc.pid})"
 
-
 def _stop_daemon() -> tuple[bool, str]:
     info = _read_pid_info()
     if not info:
@@ -2106,6 +2159,14 @@ def _stop_daemon() -> tuple[bool, str]:
 
 
 def _daemon_status() -> str:
+    if _daemon_lock_held():
+        info = _read_pid_info()
+        if info:
+            pid = int(info.get("pid", 0))
+            if pid > 0 and _is_pid_running(pid):
+                return f"Running (PID={pid})"
+        return "Running"
+
     info = _read_pid_info()
     if not info:
         return "Stopped"
@@ -2599,6 +2660,8 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
             </div>
             """, unsafe_allow_html=True)
 
+    _render_entry_conditions_summary(db_path, env)
+
     # Position sizing section
     st.markdown("---")
     st.subheader("💼 " + t("sizing_title"))
@@ -2898,6 +2961,122 @@ def _render_dashboard(db_path: Path, is_admin: bool) -> None:
     else:
         close_cols = [c for c in ["deal", "position_id", "timestamp_th", "timestamp", "symbol", "direction", "volume", "price", "profit", "commission", "swap", "magic", "comment"] if c in closed_manual.columns]
         st.dataframe(closed_manual[close_cols], width="stretch", height=260)
+
+
+def _render_entry_conditions_summary(db_path: Path, env: dict[str, str]) -> None:
+    """Show easy-to-read order-entry conditions and live pass/fail context."""
+    st.markdown("---")
+    st.subheader("Order Entry Rules (Easy View)")
+
+    watch_th = _parse_int_env(env, "WATCHLIST_THRESHOLD", 75)
+    alert_th = _parse_int_env(env, "ALERT_THRESHOLD", 85)
+    strong_th = _parse_int_env(env, "STRONG_ALERT_THRESHOLD", 90)
+    premium_th = _parse_int_env(env, "PREMIUM_ALERT_THRESHOLD", 93)
+    min_exec = str(env.get("MIN_EXECUTE_CATEGORY", "strong")).strip().lower()
+
+    category_rank = {"ignore": 0, "candidate": 1, "alert": 2, "strong": 3, "premium": 4}
+    min_exec_rank = category_rank.get(min_exec, 3)
+
+    category_rows = [
+        {"category": "ignore", "score_range": f"< {watch_th}", "can_execute": "no"},
+        {"category": "candidate", "score_range": f"{watch_th} - {alert_th - 1}", "can_execute": "no"},
+        {
+            "category": "alert",
+            "score_range": f"{alert_th} - {strong_th - 1}",
+            "can_execute": "yes" if category_rank["alert"] >= min_exec_rank else "no",
+        },
+        {
+            "category": "strong",
+            "score_range": f"{strong_th} - {premium_th - 1}",
+            "can_execute": "yes" if category_rank["strong"] >= min_exec_rank else "no",
+        },
+        {
+            "category": "premium",
+            "score_range": f">= {premium_th}",
+            "can_execute": "yes" if category_rank["premium"] >= min_exec_rank else "no",
+        },
+    ]
+    st.dataframe(pd.DataFrame(category_rows), use_container_width=True, hide_index=True)
+
+    checklist_rows = [
+        {
+            "rule": "ENABLE_EXECUTION must be true",
+            "current_value": str(env.get("ENABLE_EXECUTION", "false")).strip().lower(),
+            "status": "pass" if _parse_bool_env(env, "ENABLE_EXECUTION", False) else "fail",
+        },
+        {
+            "rule": "EXECUTION_MODE must be demo",
+            "current_value": str(env.get("EXECUTION_MODE", "demo")).strip().lower(),
+            "status": "pass" if str(env.get("EXECUTION_MODE", "demo")).strip().lower() == "demo" else "fail",
+        },
+        {
+            "rule": "signal category must be >= MIN_EXECUTE_CATEGORY",
+            "current_value": min_exec,
+            "status": "depends on category (table above)",
+        },
+        {
+            "rule": "hard_filters_passed must be 1",
+            "current_value": "per-signal runtime value",
+            "status": "depends on each signal",
+        },
+        {
+            "rule": "not blocked by max_open_positions/cooldown/daily_loss/account_mode",
+            "current_value": "runtime check",
+            "status": "depends on runtime state",
+        },
+    ]
+    st.dataframe(pd.DataFrame(checklist_rows), use_container_width=True, hide_index=True)
+
+    signal_stats = _query_df(
+        db_path,
+        """
+        SELECT
+          category,
+          COUNT(*) AS total,
+          SUM(CASE WHEN hard_filters_passed=1 THEN 1 ELSE 0 END) AS hard_pass
+        FROM signals
+        GROUP BY category
+        ORDER BY total DESC
+        """,
+    )
+    if not signal_stats.empty:
+        stat_map = {
+            str(r["category"]): (int(r["total"] or 0), int(r["hard_pass"] or 0))
+            for _, r in signal_stats.iterrows()
+        }
+        live_rows = []
+        for c in ["ignore", "candidate", "alert", "strong", "premium"]:
+            total, hard_pass = stat_map.get(c, (0, 0))
+            can_exec = category_rank.get(c, 0) >= min_exec_rank
+            live_rows.append(
+                {
+                    "category": c,
+                    "signals_total": total,
+                    "hard_filter_pass": hard_pass,
+                    "eligible_by_category": hard_pass if can_exec else 0,
+                }
+            )
+        st.caption("Live summary from active database")
+        st.dataframe(pd.DataFrame(live_rows), use_container_width=True, hide_index=True)
+
+    skipped_top = _query_df(
+        db_path,
+        """
+        SELECT reason, COUNT(*) AS c
+        FROM orders
+        WHERE status='skipped'
+        GROUP BY reason
+        ORDER BY c DESC
+        LIMIT 6
+        """,
+    )
+    if not skipped_top.empty:
+        st.caption("Top skip reasons")
+        st.dataframe(
+            skipped_top.rename(columns={"reason": "reason", "c": "count"}),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 def _render_performance(db_path: Path) -> None:
@@ -4243,3 +4422,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
