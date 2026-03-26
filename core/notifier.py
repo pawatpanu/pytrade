@@ -82,6 +82,7 @@ class Notifier:
         sev = signal.category.upper()
         sev_icon = CATEGORY_EMOJI.get(signal.category, "⚠️")
         dir_icon = DIR_EMOJI.get(signal.direction, "•")
+        account_label = f"ACC {self.config.mt5_login}" if self.config.mt5_login else "ACC unknown"
         top = sorted(signal.component_scores.items(), key=lambda kv: kv[1], reverse=True)[:3]
         top_text = ", ".join(f"{k}:{v:.1f}" for k, v in top) if top else "-"
         plan = signal.trade_plan or {}
@@ -90,7 +91,7 @@ class Notifier:
             f"Size {plan.get('position_size', 0):.4f} | Risk ${plan.get('risk_amount', 0):.2f}"
         )
         return (
-            f"{mode}{sev_icon} {sev} | {dir_icon} {signal.direction} {signal.symbol}\n"
+            f"{mode}{sev_icon} {sev} | {account_label} | {dir_icon} {signal.direction} {signal.symbol}\n"
             f"Score {signal.score:.2f} | Price {signal.price:.5f}\n"
             f"TF H4:{tf.get('H4')} H1:{tf.get('H1')} M15:{tf.get('M15')} M5:{tf.get('M5')}\n"
             f"RSI {snap.get('rsi14', 0):.2f} | MACD {snap.get('macd', 0):.4f}/{snap.get('macd_signal', 0):.4f} | ADX {snap.get('adx14', 0):.2f}\n"
