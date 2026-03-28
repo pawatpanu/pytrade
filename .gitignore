@@ -1,4 +1,4 @@
-﻿.venv/
+.venv/
 __pycache__/
 *.pyc
 signals.db
@@ -10,4 +10,10 @@ signals_*.db
 tmp/
 ptmp*/
 pytest_work/
+logs/*
+!logs/.gitkeep
+output/*
+!output/.gitkeep
+unins000.dat
+unins000.exe
 installer/output/

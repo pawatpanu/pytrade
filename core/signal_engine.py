@@ -440,13 +440,18 @@ def _evaluate_direction(
     trigger_total = len(trigger_checks)
 
     min_triggers = max(1, min(trigger_total, int(asset_profile["m5_min_triggers"])))
-    if cfg.hard_filter_mode == "soft":
+    soft_mode = cfg.hard_filter_mode == "soft"
+    if soft_mode:
         min_triggers = 1
     risk_pct = float(cfg.risk_per_trade_pct) * float(asset_profile.get("risk_pct_multiplier", 1.0))
     sl_atr_multiplier = float(asset_profile["sl_atr_multiplier"])
     target_rr = float(asset_profile["target_rr"])
 
-    if trigger_count < min_triggers:
+    # In soft mode, do not downgrade high-quality setups that already pass
+    # hard filters and still show at least one lower-timeframe trigger.
+    bypass_trigger_gate = soft_mode and trigger_count >= 1 and score >= cfg.strong_alert_threshold
+
+    if trigger_count < min_triggers and not bypass_trigger_gate:
         reasons.append(f"trigger={trigger_count}/{trigger_total}")
         trade_plan = build_trade_plan(
             direction=direction,
